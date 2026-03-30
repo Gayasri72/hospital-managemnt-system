@@ -28,6 +28,8 @@ import healthRoutes from './modules/health/health.routes';
 import authRoutes from './modules/auth/auth.routes';
 import patientRoutes from './modules/patients/patient.routes';
 import { doctorRouter, hospitalChargeRouter } from './modules/doctors/doctor.routes';
+import { sessionRouter } from './modules/sessions/session.routes';
+import { appointmentRouter } from './modules/appointments/appointment.routes';
 
 const app = express();
 
@@ -68,11 +70,10 @@ app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/patients`, patientRoutes);
 app.use(`${API_PREFIX}/doctors`, doctorRouter);
 app.use(`${API_PREFIX}/hospital`, hospitalChargeRouter);
+app.use(`${API_PREFIX}/sessions`, sessionRouter);
+app.use(`${API_PREFIX}/appointments`, appointmentRouter);
 
 // Future module routes will be added here:
-// app.use(`${API_PREFIX}/appointments`, appointmentRoutes);
-// app.use(`${API_PREFIX}/departments`, departmentRoutes);
-// app.use(`${API_PREFIX}/prescriptions`, prescriptionRoutes);
 
 // ─────────────────────────── Error Handling ──────────────────────────────────
 // 404 catch-all (must be after all routes)

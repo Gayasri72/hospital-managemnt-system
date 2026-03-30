@@ -3,7 +3,8 @@
 //
 // Models for: hospitals, branches, users, roles, permissions,
 // role-permissions, audit logs, refresh tokens, patients, appointments,
-// doctors, doctor profiles/fees/availability/exceptions, hospital charges.
+// doctors, doctor profiles/fees/availability/exceptions, hospital charges,
+// channel sessions, and session slots.
 // ──────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -31,12 +32,13 @@ model Hospital {
   contact_number String?  @db.VarChar(20)
   created_at     DateTime @default(now())
 
-  branches        Branch[]
-  users           User[]
-  patients        Patient[]
-  doctors         Doctor[]
-  doctor_fees     DoctorFee[]
+  branches         Branch[]
+  users            User[]
+  patients         Patient[]
+  doctors          Doctor[]
+  doctor_fees      DoctorFee[]
   hospital_charges HospitalCharge[]
+  sessions         ChannelSession[]
 
   @@map("hospitals")
 }
@@ -48,7 +50,8 @@ model Branch {
   location    String?  @db.Text
   created_at  DateTime @default(now())
 
-  hospital Hospital @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+  hospital Hospital         @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+  sessions ChannelSession[]
 
   @@map("branches")
 }
@@ -168,20 +171,45 @@ model PatientProfile {
 // ── Appointments ─────────────────────────────────────────────────────────────
 
 model Appointment {
-  appointment_id String   @id @default(uuid()) @db.Uuid
-  hospital_id    String   @db.Uuid
-  patient_id     String   @db.Uuid
-  doctor_id      String?  @db.Uuid
-  doctor_name    String?  @db.VarChar(255)
-  reason         String?  @db.Text
-  status         String   @default("SCHEDULED") @db.VarChar(30)
-  scheduled_at   DateTime
-  created_at     DateTime @default(now())
+  appointment_id  String   @id @default(uuid()) @db.Uuid
+  hospital_id     String   @db.Uuid
+  patient_id      String   @db.Uuid
+  doctor_id       String   @db.Uuid
+  session_id      String?  @db.Uuid
+  slot_id         String?  @db.Uuid
+  queue_number    Int
+  status          String   @default("booked") @db.VarChar(30)
+  doctor_fee      Decimal  @db.Decimal(10, 2)
+  hospital_charge Decimal  @db.Decimal(10, 2)
+  total_fee       Decimal  @db.Decimal(10, 2)
+  notes           String?  @db.Text
+  metadata        Json     @default("{}")
+  booked_by       String   @db.Uuid
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
 
-  patient Patient @relation(fields: [patient_id], references: [patient_id], onDelete: Cascade)
-  doctor  Doctor? @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull)
+  patient Patient        @relation(fields: [patient_id], references: [patient_id], onDelete: Cascade)
+  doctor  Doctor         @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade)
+  session ChannelSession? @relation(fields: [session_id], references: [session_id], onDelete: SetNull)
+  slot    SessionSlot?   @relation(fields: [slot_id], references: [slot_id], onDelete: SetNull)
+  logs    AppointmentLog[]
 
   @@map("appointments")
+}
+
+model AppointmentLog {
+  log_id         String   @id @default(uuid()) @db.Uuid
+  appointment_id String   @db.Uuid
+  old_status     String?  @db.VarChar(30)
+  new_status     String   @db.VarChar(30)
+  changed_by     String   @db.Uuid
+  reason         String?  @db.Text
+  metadata       Json     @default("{}")
+  created_at     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
+
+  @@map("appointment_logs")
 }
 
 // ── Doctors ──────────────────────────────────────────────────────────────────
@@ -200,6 +228,7 @@ model Doctor {
   availability DoctorAvailability[]
   exceptions   DoctorException[]
   appointments Appointment[]
+  sessions     ChannelSession[]
 
   @@map("doctors")
 }
@@ -268,3 +297,42 @@ model DoctorException {
   @@map("doctor_exceptions")
 }
 
+// ── Channel Sessions & Slots ─────────────────────────────────────────────────
+
+model ChannelSession {
+  session_id    String   @id @default(uuid()) @db.Uuid
+  doctor_id     String   @db.Uuid
+  branch_id     String   @db.Uuid
+  hospital_id   String   @db.Uuid
+  session_date  DateTime @db.Date
+  start_time    String   @db.VarChar(5)
+  end_time      String   @db.VarChar(5)
+  slot_duration Int      @default(10)
+  max_patients  Int
+  booked_count  Int      @default(0)
+  status        String   @default("scheduled") @db.VarChar(20)
+  created_by    String   @db.Uuid
+  created_at    DateTime @default(now())
+
+  doctor       Doctor        @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [branch_id], references: [branch_id], onDelete: Cascade)
+  hospital     Hospital      @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+  slots        SessionSlot[]
+  appointments Appointment[]
+
+  @@map("channel_sessions")
+}
+
+model SessionSlot {
+  slot_id    String   @id @default(uuid()) @db.Uuid
+  session_id String   @db.Uuid
+  slot_number Int
+  slot_time  String   @db.VarChar(5)
+  is_booked  Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  session ChannelSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@map("session_slots")
+}

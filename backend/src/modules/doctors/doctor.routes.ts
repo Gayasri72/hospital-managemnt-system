@@ -119,6 +119,18 @@ doctorRouter.delete(
   ctrl.removeException,
 );
 
+// ── Doctor Sessions Route ────────────────────────────────────────────────────
+// This endpoint is on the doctor router because it's /api/v1/doctors/:id/sessions
+import * as sessionCtrl from '../sessions/session.controller';
+import { doctorSessionsQuerySchema } from '../sessions/session.validation';
+
+// GET /api/v1/doctors/:id/sessions
+doctorRouter.get(
+  '/:id/sessions',
+  validate({ params: doctorIdParamSchema, query: doctorSessionsQuerySchema }),
+  sessionCtrl.getDoctorSessions,
+);
+
 // ── Hospital Charge Routes (/api/v1/hospital) ────────────────────────────────
 
 export const hospitalChargeRouter = Router();
