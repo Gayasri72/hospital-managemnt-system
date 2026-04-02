@@ -248,6 +248,19 @@ export async function getCurrentFee(doctorId: string) {
 }
 
 /**
+ * Get the upcoming scheduled fee for a doctor (if any).
+ */
+export async function getUpcomingFee(doctorId: string) {
+  return prisma.doctorFee.findFirst({
+    where: {
+      doctor_id: doctorId,
+      effective_from: { gt: new Date() },
+    },
+    orderBy: { effective_from: 'asc' },
+  });
+}
+
+/**
  * Insert a new fee record (never update old ones — preserves history).
  */
 export async function createFee(data: CreateFeeData) {
@@ -283,6 +296,19 @@ export async function getCurrentHospitalCharge(hospitalId: string) {
       effective_from: { lte: new Date() },
     },
     orderBy: { effective_from: 'desc' },
+  });
+}
+
+/**
+ * Get the upcoming hospital charge (if any).
+ */
+export async function getUpcomingHospitalCharge(hospitalId: string) {
+  return prisma.hospitalCharge.findFirst({
+    where: {
+      hospital_id: hospitalId,
+      effective_from: { gt: new Date() },
+    },
+    orderBy: { effective_from: 'asc' },
   });
 }
 
@@ -411,8 +437,8 @@ export async function countFutureAppointments(doctorId: string) {
   return prisma.appointment.count({
     where: {
       doctor_id: doctorId,
-      scheduled_at: { gt: new Date() },
-      status: { in: ['SCHEDULED', 'Booked', 'Confirmed'] },
+      session: { session_date: { gt: new Date() } },
+      status: { in: ['SCHEDULED', 'Booked', 'Confirmed', 'booked', 'confirmed'] },
     },
   });
 }
@@ -429,8 +455,8 @@ export async function countAppointmentsOnDate(doctorId: string, date: Date) {
   return prisma.appointment.count({
     where: {
       doctor_id: doctorId,
-      scheduled_at: { gte: startOfDay, lte: endOfDay },
-      status: { in: ['SCHEDULED', 'Booked', 'Confirmed'] },
+      session: { session_date: { gte: startOfDay, lte: endOfDay } },
+      status: { in: ['SCHEDULED', 'Booked', 'Confirmed', 'booked', 'confirmed'] },
     },
   });
 }

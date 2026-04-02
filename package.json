@@ -4,7 +4,6 @@
   "description": "Hospital Management System — Production-grade Node.js/Express/TypeScript backend",
   "license": "ISC",
   "author": "gayasri pethum",
-  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon",

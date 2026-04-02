@@ -30,6 +30,8 @@ import patientRoutes from './modules/patients/patient.routes';
 import { doctorRouter, hospitalChargeRouter } from './modules/doctors/doctor.routes';
 import { sessionRouter } from './modules/sessions/session.routes';
 import { appointmentRouter } from './modules/appointments/appointment.routes';
+import { paymentRouter, reportsRouter } from './modules/payments/payment.routes';
+import adminRouter from './modules/admin/admin.routes';
 
 const app = express();
 
@@ -72,6 +74,9 @@ app.use(`${API_PREFIX}/doctors`, doctorRouter);
 app.use(`${API_PREFIX}/hospital`, hospitalChargeRouter);
 app.use(`${API_PREFIX}/sessions`, sessionRouter);
 app.use(`${API_PREFIX}/appointments`, appointmentRouter);
+app.use(`${API_PREFIX}/payments`, paymentRouter);
+app.use(`${API_PREFIX}/reports`, reportsRouter);
+app.use(`${API_PREFIX}/admin`, adminRouter);
 
 // Future module routes will be added here:
 

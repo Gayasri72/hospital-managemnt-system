@@ -76,10 +76,12 @@ export async function getDoctorById(doctorId: string, hospitalId: string) {
     throw new AppError('Doctor not found.', 404, 'DOCTOR_NOT_FOUND');
   }
 
-  // Get current fee and hospital charge
-  const [currentFee, hospitalCharge] = await Promise.all([
+  // Get current and upcoming fees
+  const [currentFee, hospitalCharge, upcomingFee, upcomingHospitalCharge] = await Promise.all([
     doctorRepo.getCurrentFee(doctorId),
     doctorRepo.getCurrentHospitalCharge(hospitalId),
+    doctorRepo.getUpcomingFee(doctorId),
+    doctorRepo.getUpcomingHospitalCharge(hospitalId),
   ]);
 
   const consultationFee = currentFee ? Number(currentFee.consultation_fee) : 0;
@@ -92,6 +94,12 @@ export async function getDoctorById(doctorId: string, hospitalId: string) {
       : null,
     hospitalCharge: hospitalCharge
       ? { charge_amount: chargeAmount, effective_from: hospitalCharge.effective_from }
+      : null,
+    upcomingFee: upcomingFee
+      ? { consultation_fee: Number(upcomingFee.consultation_fee), effective_from: upcomingFee.effective_from }
+      : null,
+    upcomingHospitalCharge: upcomingHospitalCharge
+      ? { charge_amount: Number(upcomingHospitalCharge.charge_amount), effective_from: upcomingHospitalCharge.effective_from }
       : null,
     total_fee: consultationFee + chargeAmount,
   };

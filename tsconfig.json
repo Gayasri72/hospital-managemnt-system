@@ -2,8 +2,8 @@
   "compilerOptions": {
     /* ── Language & Environment ── */
     "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "lib": ["ES2022"],
 
     /* ── File Layout ── */

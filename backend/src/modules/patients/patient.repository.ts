@@ -197,7 +197,7 @@ export async function findAppointmentsByPatient(patientId: string, hospitalId: s
       patient_id: patientId,
       hospital_id: hospitalId,
     },
-    orderBy: { scheduled_at: 'desc' },
+    orderBy: { created_at: 'desc' },
   });
 }
 

@@ -7,8 +7,8 @@
 //   POST   /             → Receptionist, Hospital Admin, Super Admin
 //   GET    /             → Receptionist, Doctor, Hospital Admin, Super Admin
 //   GET    /:id          → All authenticated roles
-//   PUT    /:id          → Receptionist, Hospital Admin
-//   GET    /:id/appointments → Receptionist, Doctor, Hospital Admin
+//   PUT    /:id          → Receptionist, Hospital Admin, Super Admin
+//   GET    /:id/appointments → Receptionist, Doctor, Hospital Admin, Super Admin
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { Router } from 'express';
@@ -54,7 +54,7 @@ router.get(
 // PUT /api/v1/patients/:id — update patient
 router.put(
   '/:id',
-  authorize('Receptionist', 'Hospital Admin'),
+  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
   validate({ params: patientIdParamSchema, body: updatePatientSchema }),
   patientController.updatePatient,
 );
@@ -62,7 +62,7 @@ router.put(
 // GET /api/v1/patients/:id/appointments — appointment history
 router.get(
   '/:id/appointments',
-  authorize('Receptionist', 'Doctor', 'Hospital Admin'),
+  authorize('Receptionist', 'Doctor', 'Hospital Admin', 'Super Admin'),
   validate({ params: patientIdParamSchema }),
   patientController.getPatientAppointments,
 );

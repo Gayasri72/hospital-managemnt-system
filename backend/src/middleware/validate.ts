@@ -18,30 +18,42 @@ interface ValidationSchemas {
 
 export const validate = (schemas: ValidationSchemas) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const errors: string[] = [];
-
     try {
       if (schemas.body) {
-        req.body = schemas.body.parse(req.body);
+        const bodyParsed = schemas.body.parse(req.body);
+        Object.defineProperty(req, 'body', { value: bodyParsed, writable: true, enumerable: true, configurable: true });
       }
       if (schemas.params) {
-        req.params = schemas.params.parse(req.params) as typeof req.params;
+        const paramsParsed = schemas.params.parse(req.params);
+        Object.defineProperty(req, 'params', { value: paramsParsed, writable: true, enumerable: true, configurable: true });
       }
       if (schemas.query) {
-        req.query = schemas.query.parse(req.query) as typeof req.query;
+        const queryParsed = schemas.query.parse(req.query);
+        Object.defineProperty(req, 'query', { value: queryParsed, writable: true, enumerable: true, configurable: true });
       }
-      next();
     } catch (error) {
-      const zodError = error as ZodError;
-      zodError.errors.forEach((e) => {
-        errors.push(`${e.path.join('.')}: ${e.message}`);
-      });
+      const errors: string[] = [];
+      if (error && typeof error === 'object' && 'errors' in error) {
+        const zodError = error as ZodError;
+        if (Array.isArray(zodError.errors)) {
+          zodError.errors.forEach((e) => {
+            errors.push(`${e.path.join('.')}: ${e.message}`);
+          });
+        } else {
+          errors.push(error.toString());
+        }
+      } else {
+        errors.push((error as Error).message || 'Unknown validation error');
+      }
+      
       sendError({
         res,
         statusCode: 422,
         message: 'Validation failed',
         errors,
       });
+      return;
     }
+    next();
   };
 };

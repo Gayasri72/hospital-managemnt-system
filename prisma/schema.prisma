@@ -193,6 +193,7 @@ model Appointment {
   session ChannelSession? @relation(fields: [session_id], references: [session_id], onDelete: SetNull)
   slot    SessionSlot?   @relation(fields: [slot_id], references: [slot_id], onDelete: SetNull)
   logs    AppointmentLog[]
+  payment Payment?
 
   @@map("appointments")
 }
@@ -210,6 +211,43 @@ model AppointmentLog {
   appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
 
   @@map("appointment_logs")
+}
+
+// ── Payments & Transactions ──────────────────────────────────────────────────
+
+model Payment {
+  payment_id      String   @id @default(uuid()) @db.Uuid
+  appointment_id  String   @unique @db.Uuid
+  hospital_id     String   @db.Uuid
+  total_amount    Decimal  @db.Decimal(10, 2)
+  doctor_amount   Decimal  @db.Decimal(10, 2)
+  hospital_amount Decimal  @db.Decimal(10, 2)
+  amount_paid     Decimal  @default(0) @db.Decimal(10, 2)
+  status          String   @default("pending") @db.VarChar(20)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now()) @updatedAt
+
+  appointment  Appointment          @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
+  transactions PaymentTransaction[]
+
+  @@map("payments")
+}
+
+model PaymentTransaction {
+  transaction_id String   @id @default(uuid()) @db.Uuid
+  payment_id     String   @db.Uuid
+  hospital_id    String   @db.Uuid
+  method         String   @db.VarChar(20)
+  amount         Decimal  @db.Decimal(10, 2)
+  direction      String   @default("credit") @db.VarChar(10)
+  reference      String?  @db.VarChar(100)
+  note           String?  @db.Text
+  processed_by   String   @db.Uuid
+  created_at     DateTime @default(now())
+
+  payment Payment @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade)
+
+  @@map("payment_transactions")
 }
 
 // ── Doctors ──────────────────────────────────────────────────────────────────

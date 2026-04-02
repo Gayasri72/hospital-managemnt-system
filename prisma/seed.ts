@@ -14,33 +14,79 @@ const prisma = new PrismaClient();
 
 const ROLES = ['Super Admin', 'Hospital Admin', 'Receptionist', 'Doctor', 'Accountant'] as const;
 
+/**
+ * Complete system permissions — granular per module.
+ * Super Admin sees this full list when creating custom roles.
+ */
 const PERMISSIONS = [
-  'create_appointment',
-  'register_patient',
-  'manage_payments',
+  // Patient module
+  'view_patients',
+  'create_patients',
+  'update_patients',
+
+  // Doctor module
+  'view_doctors',
+  'manage_doctors',         // create, update, deactivate doctors
+  'manage_doctor_schedule', // availability + exceptions
+
+  // Session module
+  'view_sessions',
+  'manage_sessions',        // create, update, cancel sessions
+
+  // Appointment module
+  'view_appointments',
+  'book_appointments',      // create + reschedule
+  'manage_appointments',    // update status (confirm, arrive, complete)
+
+  // Billing module
+  'view_billing',
+  'manage_billing',         // create payment, record transactions
+  'issue_refunds',
+
+  // Reports module
   'view_reports',
-  'manage_doctors',
-  'manage_users',
-  'manage_system',
+
+  // Administration
+  'manage_roles',           // create/update/delete roles
+  'manage_users',           // create/update/deactivate users
+  'manage_system',          // system-wide settings (Super Admin only)
 ] as const;
 
 /**
- * Role → Permissions mapping.
- * Super Admin gets everything; others get a scoped subset.
+ * Default role → permissions mapping.
+ * Super Admin gets everything. Others get scoped subsets.
  */
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   'Super Admin': [...PERMISSIONS],
   'Hospital Admin': [
-    'create_appointment',
-    'register_patient',
-    'manage_payments',
+    'view_patients', 'create_patients', 'update_patients',
+    'view_doctors', 'manage_doctors', 'manage_doctor_schedule',
+    'view_sessions', 'manage_sessions',
+    'view_appointments', 'book_appointments', 'manage_appointments',
+    'view_billing', 'manage_billing', 'issue_refunds',
     'view_reports',
-    'manage_doctors',
     'manage_users',
   ],
-  Receptionist: ['create_appointment', 'register_patient'],
-  Doctor: ['create_appointment', 'view_reports'],
-  Accountant: ['manage_payments', 'view_reports'],
+  Receptionist: [
+    'view_patients', 'create_patients', 'update_patients',
+    'view_doctors',
+    'view_sessions',
+    'view_appointments', 'book_appointments', 'manage_appointments',
+    'view_billing', 'manage_billing',
+  ],
+  Doctor: [
+    'view_patients',
+    'view_doctors',
+    'view_sessions',
+    'view_appointments', 'manage_appointments',
+    'view_billing',
+  ],
+  Accountant: [
+    'view_patients',
+    'view_appointments',
+    'view_billing', 'manage_billing', 'issue_refunds',
+    'view_reports',
+  ],
 };
 
 // ── Main Seed Function ───────────────────────────────────────────────────────
@@ -107,6 +153,19 @@ async function main(): Promise<void> {
       name: 'City General Hospital',
       address: '123 Medical Drive, Colombo 07',
       contact_number: '+94 11 234 5678',
+    },
+  });
+
+  // 4.1) Test Branch
+  console.log('  → Seeding main branch...');
+  const branch = await prisma.branch.upsert({
+    where: { branch_id: '11111111-1111-1111-1111-111111111111' },
+    update: {},
+    create: {
+      branch_id: '11111111-1111-1111-1111-111111111111',
+      hospital_id: hospital.hospital_id,
+      name: 'Main Branch - Colombo 07',
+      location: 'Main Building Wing A',
     },
   });
 

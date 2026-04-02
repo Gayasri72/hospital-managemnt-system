@@ -40,13 +40,18 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install only production dependencies
+# Install production deps + tsx for seeding + Prisma client
 RUN npm ci --omit=dev && \
+    npm install tsx && \
     npx prisma generate && \
     npm cache clean --force
 
 # Copy compiled code from builder
 COPY --from=builder /app/dist ./dist
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Create logs directory
 RUN mkdir -p logs && chown -R appuser:appgroup /app
@@ -58,8 +63,8 @@ USER appuser
 EXPOSE 5000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/v1/health || exit 1
 
-# Start the application
-CMD ["node", "dist/server.js"]
+# Use entrypoint to run migrations + seed before starting
+ENTRYPOINT ["./docker-entrypoint.sh"]
