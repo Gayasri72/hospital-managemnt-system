@@ -9,8 +9,8 @@ echo "⏳ Waiting for database to be ready..."
 # The healthcheck in compose handles this, but belt-and-suspenders:
 sleep 2
 
-echo "📦 Syncing Prisma schema with database..."
-npx prisma db push --accept-data-loss
+echo "📦 Running database migrations..."
+npx prisma migrate deploy
 
 echo "🌱 Seeding database..."
 npx prisma db seed || echo "⚠️  Seed skipped (may already exist)"
