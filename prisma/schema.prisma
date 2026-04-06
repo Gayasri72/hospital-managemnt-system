@@ -39,6 +39,8 @@ model Hospital {
   doctor_fees      DoctorFee[]
   hospital_charges HospitalCharge[]
   sessions         ChannelSession[]
+  medical_records  MedicalRecord[]
+  prescriptions    Prescription[]
 
   @@map("hospitals")
 }
@@ -104,6 +106,7 @@ model User {
   role           Role           @relation(fields: [role_id], references: [role_id])
   audit_logs     AuditLog[]
   refresh_tokens RefreshToken[]
+  doctor         Doctor?
 
   @@map("users")
 }
@@ -151,6 +154,8 @@ model Patient {
   hospital     Hospital        @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
   profile      PatientProfile?
   appointments Appointment[]
+  medical_records MedicalRecord[]
+  prescriptions   Prescription[]
 
   @@unique([hospital_id, nic], name: "unique_hospital_nic")
   @@map("patients")
@@ -194,6 +199,7 @@ model Appointment {
   slot    SessionSlot?   @relation(fields: [slot_id], references: [slot_id], onDelete: SetNull)
   logs    AppointmentLog[]
   payment Payment?
+  medical_record MedicalRecord?
 
   @@map("appointments")
 }
@@ -255,18 +261,21 @@ model PaymentTransaction {
 model Doctor {
   doctor_id      String   @id @default(uuid()) @db.Uuid
   hospital_id    String   @db.Uuid
+  user_id        String?  @unique @db.Uuid
   name           String   @db.VarChar(255)
   specialization String   @db.VarChar(255)
   status         String   @default("active") @db.VarChar(20)
   created_at     DateTime @default(now())
 
   hospital     Hospital           @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+  user         User?              @relation(fields: [user_id], references: [user_id])
   profile      DoctorProfile?
   fees         DoctorFee[]
   availability DoctorAvailability[]
   exceptions   DoctorException[]
   appointments Appointment[]
   sessions     ChannelSession[]
+  medical_records MedicalRecord[]
 
   @@map("doctors")
 }
@@ -373,4 +382,47 @@ model SessionSlot {
   appointments Appointment[]
 
   @@map("session_slots")
+}
+
+// ── Medical Records & Prescriptions ──────────────────────────────────────────
+
+model MedicalRecord {
+  record_id      String   @id @default(uuid()) @db.Uuid
+  appointment_id String   @unique @db.Uuid
+  patient_id     String   @db.Uuid
+  doctor_id      String   @db.Uuid
+  hospital_id    String   @db.Uuid
+  diagnosis      String   @db.Text
+  notes          String?  @db.Text
+  follow_up_date DateTime? @db.Date
+  metadata       Json     @default("{}")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patient_id], references: [patient_id], onDelete: Cascade)
+  doctor      Doctor      @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade)
+  hospital    Hospital    @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+  prescriptions Prescription[]
+
+  @@map("medical_records")
+}
+
+model Prescription {
+  prescription_id String   @id @default(uuid()) @db.Uuid
+  record_id       String   @db.Uuid
+  patient_id      String   @db.Uuid
+  hospital_id     String   @db.Uuid
+  medicine_name   String   @db.VarChar(255)
+  dosage          String   @db.VarChar(100)
+  frequency       String   @db.VarChar(100)
+  duration        String   @db.VarChar(100)
+  instructions    String?  @db.Text
+  created_at      DateTime @default(now())
+
+  medical_record MedicalRecord @relation(fields: [record_id], references: [record_id], onDelete: Cascade)
+  patient        Patient       @relation(fields: [patient_id], references: [patient_id], onDelete: Cascade)
+  hospital       Hospital      @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade)
+
+  @@map("prescriptions")
 }

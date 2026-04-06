@@ -1891,6 +1891,114 @@ Create payment for a "booked" appointment:
 **Expected**: `404 DOCTOR_NOT_FOUND`
 
 ---
+## MODULE 10 — Medical Records
+
+> **Login as**: Doctor (usually) or Hospital Admin/Super Admin. Ensure the appointment is 'completed'.
+
+### 10.1 POST /medical-records — ✅ Create Medical Record
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/medical-records` |
+| **Body** | `JSON` |
+
+```json
+{
+  "appointment_id": "{{appointment_id}}",
+  "diagnosis": "Viral Fever",
+  "notes": "Patient advised to rest for 3 days.",
+  "follow_up_date": "2026-05-15",
+  "prescriptions": [
+    {
+      "medicine_name": "Paracetamol",
+      "dosage": "500mg",
+      "frequency": "Three times a day",
+      "duration": "3 days",
+      "instructions": "After meals"
+    }
+  ]
+}
+```
+
+**Expected**: `201 Created`
+
+---
+
+### 10.2 PUT /medical-records/:id — ✅ Update Medical Record
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/medical-records/{{record_id}}` |
+| **Body** | `JSON` |
+
+```json
+{
+  "notes": "Patient advised to rest for 5 days. Drink plenty of fluids.",
+  "prescriptions": [
+    {
+      "medicine_name": "Paracetamol",
+      "dosage": "500mg",
+      "frequency": "Three times a day",
+      "duration": "5 days",
+      "instructions": "After meals"
+    }
+  ]
+}
+```
+
+**Expected**: `200 OK`
+
+---
+
+### 10.3 GET /medical-records/appointment/:appointment_id — ✅ Get By Appointment
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/medical-records/appointment/{{appointment_id}}` |
+
+**Expected**: `200 OK`
+
+---
+
+### 10.4 GET /medical-records/:id/print — ✅ Get Print Format
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/medical-records/{{record_id}}/print` |
+
+**Expected**: `200 OK`
+
+---
+
+### 10.5 GET /patients/:patient_id/medical-records — ✅ Patient History
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/patients/{{patient_id}}/medical-records` |
+
+**Expected**: `200 OK`
+
+---
+
+### 10.6 GET /patients/:patient_id/prescriptions — ✅ Patient Prescriptions
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/patients/{{patient_id}}/prescriptions` |
+
+**Expected**: `200 OK`
+
+---
+
+### 10.7 GET /doctors/:doctor_id/medical-records — ✅ Doctor Records
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/doctors/{{doctor_id}}/medical-records` |
+
+**Expected**: `200 OK`
+
+---
 
 ## Postman Environment Variables
 
@@ -1908,6 +2016,7 @@ Set these up to make testing easier:
 | `session_id_2` | UUID | After creating second session |
 | `appointment_id` | UUID | After booking first appointment |
 | `payment_id` | UUID | After creating first payment |
+| `record_id` | UUID | After creating first medical record |
 
 ---
 
@@ -1937,6 +2046,9 @@ Set these up to make testing easier:
 - [ ] Partial + full payment
 - [ ] Refund (partial)
 - [ ] Revenue reports (daily, monthly, doctor, summary)
+- [ ] Create medical records + prescriptions
+- [ ] Retrieve medical print formats
+- [ ] Verify 24-hr lock window works for doctors
 
 ---
 

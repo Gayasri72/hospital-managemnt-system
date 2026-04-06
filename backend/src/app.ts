@@ -32,6 +32,7 @@ import { sessionRouter } from './modules/sessions/session.routes';
 import { appointmentRouter } from './modules/appointments/appointment.routes';
 import { paymentRouter, reportsRouter } from './modules/payments/payment.routes';
 import adminRouter from './modules/admin/admin.routes';
+import medicalRouter from './modules/medical/medical.routes';
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use(`${API_PREFIX}/appointments`, appointmentRouter);
 app.use(`${API_PREFIX}/payments`, paymentRouter);
 app.use(`${API_PREFIX}/reports`, reportsRouter);
 app.use(`${API_PREFIX}/admin`, adminRouter);
+app.use(`${API_PREFIX}`, medicalRouter); // Maps all medical routes from root prefix API_PREFIX
 
 // Future module routes will be added here:
 
