@@ -2000,6 +2000,95 @@ Create payment for a "booked" appointment:
 
 ---
 
+## MODULE 11 — Analytics Reports
+
+> **Login as**: Hospital Admin or Super Admin (Receptionist can access some reports)
+
+### 11.1 GET /reports/appointments/daily — ✅ Daily Appointments Report
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/appointments/daily?date=2026-05-05` |
+| **Auth** | Bearer `{{token}}` (Receptionist, Admin) |
+
+**Expected**: `200 OK` — detailed daily stats
+
+---
+
+### 11.2 GET /reports/appointments/monthly — ✅ Monthly Appointments Report
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/appointments/monthly?year=2026&month=5` |
+| **Auth** | Bearer `{{token}}` (Admin) |
+
+**Expected**: `200 OK` — monthly aggregated stats
+
+---
+
+### 11.3 GET /reports/appointments/doctor-wise — ✅ Doctor-wise Appointments
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/appointments/doctor-wise?from=2026-05-01&to=2026-05-31` |
+| **Auth** | Bearer `{{token}}` (Admin) |
+
+**Expected**: `200 OK` — appointment breakdown aligned to specific doctors
+
+---
+
+### 11.4 GET /reports/appointments/cancelled — ✅ Cancelled Appointments
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/appointments/cancelled?from=2026-05-01&to=2026-05-31` |
+| **Auth** | Bearer `{{token}}` (Receptionist, Admin) |
+
+**Expected**: `200 OK` — list of cancelled appointments with reasons
+
+---
+
+### 11.5 GET /reports/patients/summary — ✅ Patient Demographics/Summary
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/patients/summary?from=2026-05-01&to=2026-05-31` |
+| **Auth** | Bearer `{{token}}` (Admin) |
+
+**Expected**: `200 OK` — summary of new, returning, and active patients
+
+---
+
+### 11.6 GET /reports/doctors/performance — ✅ Doctor Performance Stats
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/reports/doctors/performance?from=2026-05-01&to=2026-05-31` |
+| **Auth** | Bearer `{{token}}` (Admin) |
+
+**Expected**: `200 OK` — doctors ranked by completion rate, earned revenue, and session engagement
+
+---
+
+## MODULE 12 — Global Dashboard
+
+> **Login as**: Any user with a valid token
+
+### 12.1 GET /dashboard — ✅ Aggregated Dashboard
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/dashboard` |
+| **Auth** | Bearer `{{token}}` |
+
+**Notes**: 
+- If logged in as **Doctor**, returns personal stats, today's sessions, and the very next appointment.
+- If logged in as **Hospital Admin**, **Receptionist** or **Accountant**, returns hospital-wide metrics (Today's count, This Month progress, Active Sessions board, etc).
+
+**Expected**: `200 OK` — customized metric payloads based on authenticated role.
+
+---
+
 ## Postman Environment Variables
 
 Set these up to make testing easier:

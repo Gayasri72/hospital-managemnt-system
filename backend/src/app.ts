@@ -33,6 +33,8 @@ import { appointmentRouter } from './modules/appointments/appointment.routes';
 import { paymentRouter, reportsRouter } from './modules/payments/payment.routes';
 import adminRouter from './modules/admin/admin.routes';
 import medicalRouter from './modules/medical/medical.routes';
+import dashboardRouter from './modules/dashboard/dashboard.routes';
+import generalReportsRouter from './modules/reports/report.routes';
 
 const app = express();
 
@@ -76,7 +78,9 @@ app.use(`${API_PREFIX}/hospital`, hospitalChargeRouter);
 app.use(`${API_PREFIX}/sessions`, sessionRouter);
 app.use(`${API_PREFIX}/appointments`, appointmentRouter);
 app.use(`${API_PREFIX}/payments`, paymentRouter);
-app.use(`${API_PREFIX}/reports`, reportsRouter);
+app.use(`${API_PREFIX}/reports`, reportsRouter); // existing revenue reports
+app.use(`${API_PREFIX}/reports`, generalReportsRouter); // new appointments/patients/doctors reports
+app.use(`${API_PREFIX}/dashboard`, dashboardRouter);
 app.use(`${API_PREFIX}/admin`, adminRouter);
 app.use(`${API_PREFIX}`, medicalRouter); // Maps all medical routes from root prefix API_PREFIX
 
