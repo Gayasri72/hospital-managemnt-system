@@ -9,9 +9,9 @@ import { StatusCodes } from 'http-status-codes';
 export async function getDashboard(req: Request, res: Response, next: NextFunction) {
   try {
     const data = await dashboardService.getDashboardData({
-      user_id: req.user!.user_id,
+      user_id: req.user!.userId,
       role: req.user!.role,
-      hospital_id: req.user!.hospital_id
+      hospital_id: req.user!.hospitalId
     });
     
     res.status(StatusCodes.OK).json({ success: true, ...data });

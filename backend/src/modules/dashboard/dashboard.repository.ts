@@ -6,7 +6,6 @@
 // - Uses raw SQL for optimized aggregations
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 
 export async function getTodayStats(hospitalId: string) {

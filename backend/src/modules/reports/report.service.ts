@@ -3,7 +3,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import * as reportRepo from './report.repository';
-import { ApiError } from '../../utils/api-error';
+import { AppError } from '../../utils/apiError';
 import { StatusCodes } from 'http-status-codes';
 
 // Helper to get ISO date strings locally
@@ -20,7 +20,7 @@ function getFirstDayOfMonthString() {
 
 function validateDateRange(from: string, to: string) {
   if (new Date(from) > new Date(to)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'INVALID_DATE_RANGE', '"from" date must be before or equal to "to" date');
+    throw new AppError('"from" date must be before or equal to "to" date', StatusCodes.BAD_REQUEST, 'INVALID_DATE_RANGE');
   }
 }
 
@@ -35,7 +35,7 @@ export async function getMonthlyAppointments(hospitalId: string, year?: number, 
   const queryMonth = month || (d.getMonth() + 1);
 
   if (queryMonth < 1 || queryMonth > 12) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'INVALID_MONTH', 'Month must be between 1 and 12');
+    throw new AppError('Month must be between 1 and 12', StatusCodes.BAD_REQUEST, 'INVALID_MONTH');
   }
 
   return reportRepo.getMonthlyAppointments(hospitalId, queryYear, queryMonth);

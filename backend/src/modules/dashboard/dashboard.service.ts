@@ -4,7 +4,7 @@
 
 import * as dashboardRepo from './dashboard.repository';
 import { prisma } from '../../config/database';
-import { ApiError } from '../../utils/api-error';
+import { AppError } from '../../utils/apiError';
 import { StatusCodes } from 'http-status-codes';
 
 export async function getDashboardData(user: { user_id: string; role: string; hospital_id: string }) {
@@ -18,7 +18,7 @@ export async function getDashboardData(user: { user_id: string; role: string; ho
     });
 
     if (!doctor) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'DOCTOR_PROFILE_NOT_FOUND', 'Doctor profile is not associated with this user.');
+      throw new AppError('Doctor profile is not associated with this user.', StatusCodes.NOT_FOUND, 'DOCTOR_PROFILE_NOT_FOUND');
     }
 
     const [personal_stats, my_sessions_today, next_appointment] = await Promise.all([
