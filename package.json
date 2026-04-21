@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "rimraf dist && tsc -p tsconfig.json",
+    "vercel-build": "npx prisma generate && npx prisma migrate deploy && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint 'backend/src/**/*.ts'",
     "lint:fix": "eslint 'backend/src/**/*.ts' --fix",
