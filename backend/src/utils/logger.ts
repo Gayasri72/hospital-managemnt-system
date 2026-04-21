@@ -31,13 +31,7 @@ export const logger = winston.createLogger({
   defaultMeta: { service: 'hospital-api' },
   transports: [
     new winston.transports.Console(),
-    // In production, also write to files
-    ...(isDev
-      ? []
-      : [
-          new winston.transports.File({ filename: 'logs/error.log', level: 'error', maxsize: 5_242_880, maxFiles: 5 }),
-          new winston.transports.File({ filename: 'logs/combined.log', maxsize: 5_242_880, maxFiles: 5 }),
-        ]),
+    // File transports removed for Vercel Serverless compatibility (read-only filesystem)
   ],
   // Do not exit on handled exceptions
   exitOnError: false,
