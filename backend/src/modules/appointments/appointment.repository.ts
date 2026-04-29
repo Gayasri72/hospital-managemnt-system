@@ -74,7 +74,7 @@ export async function createAppointment(data: BookingData, audit: Omit<AuditEntr
     >(
       `SELECT session_id, booked_count, max_patients, status, doctor_id
        FROM channel_sessions
-       WHERE session_id = $1
+       WHERE session_id = $1::uuid
        FOR UPDATE`,
       data.session_id,
     );
@@ -100,7 +100,7 @@ export async function createAppointment(data: BookingData, audit: Omit<AuditEntr
       >(
         `SELECT slot_id, slot_number, slot_time, is_booked
          FROM session_slots
-         WHERE slot_id = $1 AND session_id = $2
+         WHERE slot_id = $1::uuid AND session_id = $2::uuid
          FOR UPDATE`,
         data.slot_id,
         data.session_id,
@@ -116,7 +116,7 @@ export async function createAppointment(data: BookingData, audit: Omit<AuditEntr
       >(
         `SELECT slot_id, slot_number, slot_time
          FROM session_slots
-         WHERE session_id = $1 AND is_booked = false
+         WHERE session_id = $1::uuid AND is_booked = false
          ORDER BY slot_number ASC
          LIMIT 1
          FOR UPDATE`,
@@ -129,7 +129,7 @@ export async function createAppointment(data: BookingData, audit: Omit<AuditEntr
 
     // STEP 4 — Mark slot as booked
     await tx.$queryRawUnsafe(
-      `UPDATE session_slots SET is_booked = true WHERE slot_id = $1`,
+      `UPDATE session_slots SET is_booked = true WHERE slot_id = $1::uuid`,
       targetSlot.slot_id,
     );
 
@@ -141,7 +141,7 @@ export async function createAppointment(data: BookingData, audit: Omit<AuditEntr
              WHEN booked_count + 1 >= max_patients THEN 'full'
              ELSE status
            END
-       WHERE session_id = $1`,
+       WHERE session_id = $1::uuid`,
       data.session_id,
     );
 
@@ -219,7 +219,7 @@ export async function updateAppointmentStatus(
     if ((newStatus === 'cancelled' || newStatus === 'no_show') && appointment.slot_id && appointment.session_id) {
       // Release the slot
       await tx.$queryRawUnsafe(
-        `UPDATE session_slots SET is_booked = false WHERE slot_id = $1`,
+        `UPDATE session_slots SET is_booked = false WHERE slot_id = $1::uuid`,
         appointment.slot_id,
       );
 
@@ -228,7 +228,7 @@ export async function updateAppointmentStatus(
         `UPDATE channel_sessions
          SET booked_count = GREATEST(booked_count - 1, 0),
              status = CASE WHEN status = 'full' THEN 'open' ELSE status END
-         WHERE session_id = $1`,
+         WHERE session_id = $1::uuid`,
         appointment.session_id,
       );
     }
@@ -272,14 +272,14 @@ export async function rescheduleAppointment(
   return prisma.$transaction(async (tx) => {
     // STEP 1 — Release old slot
     await tx.$queryRawUnsafe(
-      `UPDATE session_slots SET is_booked = false WHERE slot_id = $1`,
+      `UPDATE session_slots SET is_booked = false WHERE slot_id = $1::uuid`,
       data.old_slot_id,
     );
     await tx.$queryRawUnsafe(
       `UPDATE channel_sessions
        SET booked_count = GREATEST(booked_count - 1, 0),
            status = CASE WHEN status = 'full' THEN 'open' ELSE status END
-       WHERE session_id = $1`,
+       WHERE session_id = $1::uuid`,
       data.old_session_id,
     );
 
@@ -289,7 +289,7 @@ export async function rescheduleAppointment(
     >(
       `SELECT session_id, booked_count, max_patients, status
        FROM channel_sessions
-       WHERE session_id = $1
+       WHERE session_id = $1::uuid
        FOR UPDATE`,
       data.new_session_id,
     );
@@ -309,7 +309,7 @@ export async function rescheduleAppointment(
       >(
         `SELECT slot_id, slot_number, slot_time, is_booked
          FROM session_slots
-         WHERE slot_id = $1 AND session_id = $2
+         WHERE slot_id = $1::uuid AND session_id = $2::uuid
          FOR UPDATE`,
         data.new_slot_id,
         data.new_session_id,
@@ -323,7 +323,7 @@ export async function rescheduleAppointment(
       >(
         `SELECT slot_id, slot_number, slot_time
          FROM session_slots
-         WHERE session_id = $1 AND is_booked = false
+         WHERE session_id = $1::uuid AND is_booked = false
          ORDER BY slot_number ASC LIMIT 1
          FOR UPDATE`,
         data.new_session_id,
@@ -334,7 +334,7 @@ export async function rescheduleAppointment(
 
     // Mark new slot as booked
     await tx.$queryRawUnsafe(
-      `UPDATE session_slots SET is_booked = true WHERE slot_id = $1`,
+      `UPDATE session_slots SET is_booked = true WHERE slot_id = $1::uuid`,
       targetSlot.slot_id,
     );
 
@@ -346,7 +346,7 @@ export async function rescheduleAppointment(
              WHEN booked_count + 1 >= max_patients THEN 'full'
              ELSE status
            END
-       WHERE session_id = $1`,
+       WHERE session_id = $1::uuid`,
       data.new_session_id,
     );
 
