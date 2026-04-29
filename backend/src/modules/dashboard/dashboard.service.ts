@@ -19,7 +19,19 @@ export async function getDashboardData(user: { user_id: string; role: string; ho
     });
 
     if (!doctor) {
-      throw new AppError('Doctor profile is not associated with this user.', StatusCodes.NOT_FOUND, 'DOCTOR_PROFILE_NOT_FOUND');
+      // Return empty stats gracefully instead of throwing a 404
+      // This happens if an Admin creates a User with 'Doctor' role, but hasn't created the Doctor profile yet.
+      return {
+        generated_at,
+        personal_stats: {
+          appointments_today: 0,
+          pending_appointments: 0,
+          completed_appointments: 0,
+        },
+        my_sessions_today: [],
+        next_appointment: null,
+        missing_profile: true
+      };
     }
 
     const [personal_stats, my_sessions_today, next_appointment] = await Promise.all([
