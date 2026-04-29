@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { authenticate, authorize } from '../../middleware/auth';
+import { ROLES } from '../../constants/roles';
 import { validate } from '../../middleware/validate';
 import {
   createAppointmentSchema,
@@ -27,14 +28,14 @@ appointmentRouter.use(authenticate);
 // GET /api/v1/appointments/today
 appointmentRouter.get(
   '/today',
-  authorize('Receptionist', 'Doctor', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   ctrl.getTodayAppointments,
 );
 
 // POST /api/v1/appointments
 appointmentRouter.post(
   '/',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ body: createAppointmentSchema }),
   ctrl.createAppointment,
 );
@@ -63,7 +64,7 @@ appointmentRouter.patch(
 // POST /api/v1/appointments/:id/reschedule
 appointmentRouter.post(
   '/:id/reschedule',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: appointmentIdParamSchema, body: rescheduleSchema }),
   ctrl.rescheduleAppointment,
 );
@@ -71,7 +72,7 @@ appointmentRouter.post(
 // GET /api/v1/appointments/:id/receipt-data
 appointmentRouter.get(
   '/:id/receipt-data',
-  authorize('Receptionist', 'Accountant', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.ACCOUNTANT, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: appointmentIdParamSchema }),
   ctrl.getReceiptData,
 );

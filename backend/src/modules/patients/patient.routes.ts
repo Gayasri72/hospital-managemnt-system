@@ -12,9 +12,9 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth';
-import { authorize } from '../../middleware/auth';
+import { authenticate, authorize } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { ROLES } from '../../constants/roles';
 import {
   createPatientSchema,
   updatePatientSchema,
@@ -31,7 +31,7 @@ router.use(authenticate);
 // POST /api/v1/patients — create patient
 router.post(
   '/',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ body: createPatientSchema }),
   patientController.createPatient,
 );
@@ -39,7 +39,7 @@ router.post(
 // GET /api/v1/patients — list with search + pagination
 router.get(
   '/',
-  authorize('Receptionist', 'Doctor', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ query: listPatientsQuerySchema }),
   patientController.listPatients,
 );
@@ -54,7 +54,7 @@ router.get(
 // PUT /api/v1/patients/:id — update patient
 router.put(
   '/:id',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: patientIdParamSchema, body: updatePatientSchema }),
   patientController.updatePatient,
 );
@@ -62,7 +62,7 @@ router.put(
 // GET /api/v1/patients/:id/appointments — appointment history
 router.get(
   '/:id/appointments',
-  authorize('Receptionist', 'Doctor', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: patientIdParamSchema }),
   patientController.getPatientAppointments,
 );

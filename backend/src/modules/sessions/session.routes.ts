@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { authenticate, authorize } from '../../middleware/auth';
+import { ROLES } from '../../constants/roles';
 import { validate } from '../../middleware/validate';
 import {
   createSessionSchema,
@@ -28,7 +29,7 @@ sessionRouter.use(authenticate);
 // GET /api/v1/sessions/available — find bookable sessions
 sessionRouter.get(
   '/available',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ query: availableSessionsQuerySchema }),
   ctrl.getAvailableSessions,
 );
@@ -36,7 +37,7 @@ sessionRouter.get(
 // POST /api/v1/sessions — create session
 sessionRouter.post(
   '/',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ body: createSessionSchema }),
   ctrl.createSession,
 );
@@ -58,7 +59,7 @@ sessionRouter.get(
 // PUT /api/v1/sessions/:id — update session
 sessionRouter.put(
   '/:id',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: sessionIdParamSchema, body: updateSessionSchema }),
   ctrl.updateSession,
 );
@@ -66,7 +67,7 @@ sessionRouter.put(
 // PATCH /api/v1/sessions/:id/status — update status
 sessionRouter.patch(
   '/:id/status',
-  authorize('Hospital Admin', 'Super Admin', 'Receptionist'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST),
   validate({ params: sessionIdParamSchema, body: updateStatusSchema }),
   ctrl.updateSessionStatus,
 );
@@ -74,7 +75,7 @@ sessionRouter.patch(
 // DELETE /api/v1/sessions/:id — delete session
 sessionRouter.delete(
   '/:id',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: sessionIdParamSchema }),
   ctrl.deleteSession,
 );
@@ -92,7 +93,7 @@ import * as appointmentCtrl from '../appointments/appointment.controller';
 // GET /api/v1/sessions/:id/queue — live queue board
 sessionRouter.get(
   '/:id/queue',
-  authorize('Receptionist', 'Doctor', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: sessionIdParamSchema }),
   appointmentCtrl.getSessionQueue,
 );

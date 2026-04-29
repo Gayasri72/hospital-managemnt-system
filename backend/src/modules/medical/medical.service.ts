@@ -10,6 +10,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { AppError } from '../../utils/apiError';
+import { ROLES } from '../../constants/roles';
 import * as medicalRepo from './medical.repository';
 import * as appointmentRepo from '../appointments/appointment.repository';
 
@@ -58,7 +59,7 @@ async function enforceDoctorOwnership(
   user: UserContext,
   targetDoctorId: string
 ) {
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const doctorId = await medicalRepo.getUserDoctorId(user.user_id, user.hospital_id);
     if (!doctorId) {
       throw new AppError(
@@ -123,7 +124,7 @@ export async function createMedicalRecord(input: CreateRecordInput, user: UserCo
     throw new AppError('A medical record already exists for this appointment.', 409, 'RECORD_ALREADY_EXISTS');
   }
 
-  // 5. Create via repository
+  // 5. Create via repository (audit log inside the same tx)
   const record = await medicalRepo.createMedicalRecord(
     {
       appointment_id: appointment.appointment_id,
@@ -134,11 +135,9 @@ export async function createMedicalRecord(input: CreateRecordInput, user: UserCo
       notes: input.notes,
       follow_up_date: followUpDate,
     },
-    input.prescriptions || []
+    input.prescriptions || [],
+    { user_id: user.user_id, action: 'CREATE_MEDICAL_RECORD', entity: 'medical_records' },
   );
-
-  // 6. Audit log
-  await medicalRepo.createAuditLog(user.user_id, 'CREATE_MEDICAL_RECORD', 'medical_records', record.record_id);
 
   return record;
 }
@@ -153,7 +152,7 @@ export async function updateMedicalRecord(recordId: string, input: UpdateRecordI
   await enforceDoctorOwnership(user, record.doctor_id);
 
   // 2. 24-hour edit window for Doctors
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const hoursSinceCreation = (new Date().getTime() - record.created_at.getTime()) / (1000 * 60 * 60);
     if (hoursSinceCreation > 24) {
       throw new AppError(
@@ -175,7 +174,7 @@ export async function updateMedicalRecord(recordId: string, input: UpdateRecordI
     }
   }
 
-  // 4. Update via repository
+  // 4. Update via repository (audit log inside the same tx)
   const updated = await medicalRepo.updateMedicalRecord(
     recordId,
     user.hospital_id,
@@ -184,11 +183,9 @@ export async function updateMedicalRecord(recordId: string, input: UpdateRecordI
       notes: input.notes,
       follow_up_date: followUpDate,
     },
-    input.prescriptions
+    input.prescriptions,
+    { user_id: user.user_id, action: 'UPDATE_MEDICAL_RECORD', entity: 'medical_records' },
   );
-
-  // 5. Audit log
-  await medicalRepo.createAuditLog(user.user_id, 'UPDATE_MEDICAL_RECORD', 'medical_records', recordId);
 
   return updated;
 }
@@ -201,7 +198,7 @@ export async function getMedicalRecordById(recordId: string, user: UserContext) 
   }
 
   // If Doctor, verify ownership. If failing, throw 404 (not 403) to hide existence.
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const doctorId = await medicalRepo.getUserDoctorId(user.user_id, user.hospital_id);
     if (record.doctor_id !== doctorId) {
       throw new AppError('Medical record not found.', 404, 'RECORD_NOT_FOUND');
@@ -218,7 +215,7 @@ export async function getMedicalRecordByAppointmentId(appointmentId: string, use
     throw new AppError('Appointment not found.', 404, 'RECORD_NOT_FOUND');
   }
 
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const doctorId = await medicalRepo.getUserDoctorId(user.user_id, user.hospital_id);
     if (appointment.doctor_id !== doctorId) {
       throw new AppError('Appointment not found.', 404, 'RECORD_NOT_FOUND');
@@ -238,13 +235,29 @@ export async function getPatientMedicalHistory(
   options: { page: number; limit: number; from?: string; to?: string; doctor_id?: string },
   user: UserContext
 ) {
-  // All doctors can view any patient's records
+  // Scope guard: a Doctor can only see records they authored for this patient.
+  // Why: clinical privacy. Without this, any doctor in the hospital could read
+  // every other doctor's notes on any patient, which is not a default we want.
+  // Admins and Receptionists see the full history (subject to module-level RBAC).
+  let doctorIdFilter = options.doctor_id;
+  if (user.role === ROLES.DOCTOR) {
+    const ownDoctorId = await getSelfDoctorId(user);
+    if (doctorIdFilter && doctorIdFilter !== ownDoctorId) {
+      throw new AppError(
+        'You can only view your own records for this patient.',
+        403,
+        'ACCESS_DENIED'
+      );
+    }
+    doctorIdFilter = ownDoctorId;
+  }
+
   const filters = {
     page: options.page,
     limit: options.limit,
     from: options.from ? new Date(options.from) : undefined,
     to: options.to ? new Date(options.to) : undefined,
-    doctor_id: options.doctor_id,
+    doctor_id: doctorIdFilter,
   };
 
   const result = await medicalRepo.getPatientMedicalHistory(patientId, user.hospital_id, filters);
@@ -271,11 +284,16 @@ export async function getPatientPrescriptions(
   options: { page: number; limit: number; from?: string; to?: string },
   user: UserContext
 ) {
+  // Same scope guard as getPatientMedicalHistory: a Doctor only sees what they prescribed.
+  const doctorIdFilter =
+    user.role === ROLES.DOCTOR ? await getSelfDoctorId(user) : undefined;
+
   const filters = {
     page: options.page,
     limit: options.limit,
     from: options.from ? new Date(options.from) : undefined,
     to: options.to ? new Date(options.to) : undefined,
+    doctor_id: doctorIdFilter,
   };
 
   const result = await medicalRepo.getPatientPrescriptions(patientId, user.hospital_id, filters);
@@ -303,7 +321,7 @@ export async function getDoctorMedicalRecords(
   let targetDoctorId = options.doctor_id;
 
   // Doctors can only query their own history
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const ownDoctorId = await getSelfDoctorId(user);
     if (ownDoctorId !== targetDoctorId) {
       throw new AppError('You can only view your own medical records.', 403, 'ACCESS_DENIED');
@@ -341,7 +359,7 @@ export async function getPrintData(recordId: string, user: UserContext) {
   }
 
   // Apply doctor guard if Doctor role
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const doctorId = await medicalRepo.getUserDoctorId(user.user_id, user.hospital_id);
     if (data.doctor_id !== doctorId) {
       throw new AppError('Medical record not found.', 404, 'RECORD_NOT_FOUND');

@@ -9,6 +9,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 import type { Decimal } from '@prisma/client/runtime/library';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -58,18 +59,49 @@ interface ScheduleItem {
 
 /**
  * Create doctor + profile + first fee record in a single transaction.
+ * Optionally creates a linked User account for doctor login.
  */
 export async function createWithProfileAndFee(
   doctorData: CreateDoctorData,
   profileData: CreateProfileData,
   feeData: Omit<CreateFeeData, 'doctor_id'>,
+  loginData: { email: string; password_hash: string } | undefined,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
+    // If login data provided, create a User with the Doctor role first
+    let userId: string | null = null;
+    if (loginData) {
+      // Find the 'Doctor' role
+      const doctorRole = await tx.role.findUnique({ where: { name: 'Doctor' } });
+      if (!doctorRole) {
+        throw new Error('Doctor role not found. Please ensure the "Doctor" role exists in the system.');
+      }
+
+      // Check email uniqueness
+      const existingUser = await tx.user.findUnique({ where: { email: loginData.email } });
+      if (existingUser) {
+        throw new Error('A user with this email already exists.');
+      }
+
+      const user = await tx.user.create({
+        data: {
+          hospital_id: doctorData.hospital_id,
+          role_id: doctorRole.role_id,
+          name: doctorData.name,
+          email: loginData.email,
+          password_hash: loginData.password_hash,
+        },
+      });
+      userId = user.user_id;
+    }
+
     const doctor = await tx.doctor.create({
       data: {
         hospital_id: doctorData.hospital_id,
         name: doctorData.name,
         specialization: doctorData.specialization,
+        ...(userId && { user_id: userId }),
       },
     });
 
@@ -93,7 +125,14 @@ export async function createWithProfileAndFee(
       },
     });
 
-    return { ...doctor, profile, currentFee: fee };
+    await writeAuditLog({ ...audit, entity_id: doctor.doctor_id }, tx);
+
+    return {
+      ...doctor,
+      profile,
+      currentFee: fee,
+      has_login: !!userId,
+    };
   });
 }
 
@@ -198,6 +237,7 @@ export async function updateWithProfile(
   doctorId: string,
   doctorData: UpdateDoctorData,
   profileData: UpdateProfileData,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     const doctor = await tx.doctor.update({
@@ -227,6 +267,8 @@ export async function updateWithProfile(
         ...(profileData.bio !== undefined && { bio: profileData.bio || null }),
       },
     });
+
+    await writeAuditLog({ ...audit, entity_id: doctorId }, tx);
 
     return { ...doctor, profile };
   });
@@ -263,14 +305,23 @@ export async function getUpcomingFee(doctorId: string) {
 /**
  * Insert a new fee record (never update old ones — preserves history).
  */
-export async function createFee(data: CreateFeeData) {
-  return prisma.doctorFee.create({
-    data: {
-      doctor_id: data.doctor_id,
-      hospital_id: data.hospital_id,
-      consultation_fee: data.consultation_fee,
-      effective_from: data.effective_from,
-    },
+export async function createFee(
+  data: CreateFeeData,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const fee = await tx.doctorFee.create({
+      data: {
+        doctor_id: data.doctor_id,
+        hospital_id: data.hospital_id,
+        consultation_fee: data.consultation_fee,
+        effective_from: data.effective_from,
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: fee.fee_id }, tx);
+
+    return fee;
   });
 }
 
@@ -319,13 +370,20 @@ export async function createHospitalCharge(
   hospitalId: string,
   chargeAmount: number,
   effectiveFrom: Date,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  return prisma.hospitalCharge.create({
-    data: {
-      hospital_id: hospitalId,
-      charge_amount: chargeAmount,
-      effective_from: effectiveFrom,
-    },
+  return prisma.$transaction(async (tx) => {
+    const charge = await tx.hospitalCharge.create({
+      data: {
+        hospital_id: hospitalId,
+        charge_amount: chargeAmount,
+        effective_from: effectiveFrom,
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: charge.charge_id }, tx);
+
+    return charge;
   });
 }
 
@@ -335,7 +393,11 @@ export async function createHospitalCharge(
  * Replace entire availability schedule for a doctor in a transaction.
  * Deletes all existing rows, inserts new ones.
  */
-export async function replaceAvailability(doctorId: string, schedule: ScheduleItem[]) {
+export async function replaceAvailability(
+  doctorId: string,
+  schedule: ScheduleItem[],
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
   return prisma.$transaction(async (tx) => {
     await tx.doctorAvailability.deleteMany({
       where: { doctor_id: doctorId },
@@ -353,6 +415,8 @@ export async function replaceAvailability(doctorId: string, schedule: ScheduleIt
         }),
       ),
     );
+
+    await writeAuditLog({ ...audit, entity_id: doctorId }, tx);
 
     return created;
   });
@@ -381,14 +445,21 @@ export async function getAvailability(doctorId: string) {
 export async function createException(
   doctorId: string,
   exceptionDate: Date,
-  reason?: string,
+  reason: string | undefined,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  return prisma.doctorException.create({
-    data: {
-      doctor_id: doctorId,
-      exception_date: exceptionDate,
-      reason: reason || null,
-    },
+  return prisma.$transaction(async (tx) => {
+    const exception = await tx.doctorException.create({
+      data: {
+        doctor_id: doctorId,
+        exception_date: exceptionDate,
+        reason: reason || null,
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: exception.exception_id }, tx);
+
+    return exception;
   });
 }
 
@@ -422,13 +493,26 @@ export async function findExceptionById(exceptionId: string) {
 /**
  * Delete a specific exception.
  */
-export async function deleteException(exceptionId: string) {
-  return prisma.doctorException.delete({
-    where: { exception_id: exceptionId },
+export async function deleteException(
+  exceptionId: string,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.doctorException.delete({
+      where: { exception_id: exceptionId },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: exceptionId }, tx);
+
+    return deleted;
   });
 }
 
 // ── Guard Queries ────────────────────────────────────────────────────────────
+
+// Statuses that represent "live" (slot-holding) appointments.
+// MUST stay in sync with appointment.service ALLOWED_TRANSITIONS keys.
+const LIVE_APPOINTMENT_STATUSES = ['booked', 'confirmed', 'arrived'] as const;
 
 /**
  * Count future appointments for a doctor (for deactivation guard).
@@ -438,7 +522,7 @@ export async function countFutureAppointments(doctorId: string) {
     where: {
       doctor_id: doctorId,
       session: { session_date: { gt: new Date() } },
-      status: { in: ['SCHEDULED', 'Booked', 'Confirmed', 'booked', 'confirmed'] },
+      status: { in: [...LIVE_APPOINTMENT_STATUSES] },
     },
   });
 }
@@ -456,28 +540,8 @@ export async function countAppointmentsOnDate(doctorId: string, date: Date) {
     where: {
       doctor_id: doctorId,
       session: { session_date: { gte: startOfDay, lte: endOfDay } },
-      status: { in: ['SCHEDULED', 'Booked', 'Confirmed', 'booked', 'confirmed'] },
+      status: { in: [...LIVE_APPOINTMENT_STATUSES] },
     },
   });
 }
 
-// ── Audit Log ────────────────────────────────────────────────────────────────
-
-/**
- * Write an entry to the audit log.
- */
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}

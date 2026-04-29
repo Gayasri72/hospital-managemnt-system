@@ -13,6 +13,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ interface RescheduleData {
  *
  * Returns the created appointment with slot details.
  */
-export async function createAppointment(data: BookingData) {
+export async function createAppointment(data: BookingData, audit: Omit<AuditEntry, 'entity_id'>) {
   return prisma.$transaction(async (tx) => {
     // STEP 1 — Lock session row
     const sessions = await tx.$queryRawUnsafe<
@@ -176,6 +177,9 @@ export async function createAppointment(data: BookingData) {
       },
     });
 
+    // STEP 8 — Audit log (inside the same tx so a DB blip rolls back the booking)
+    await writeAuditLog({ ...audit, entity_id: appointment.appointment_id }, tx);
+
     return {
       ...appointment,
       slot_time: targetSlot.slot_time,
@@ -199,7 +203,8 @@ export async function updateAppointmentStatus(
   appointmentId: string,
   newStatus: string,
   changedBy: string,
-  reason?: string,
+  reason: string | undefined,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     // Get current appointment
@@ -245,6 +250,8 @@ export async function updateAppointmentStatus(
       },
     });
 
+    await writeAuditLog({ ...audit, entity_id: appointmentId }, tx);
+
     return updated;
   });
 }
@@ -258,7 +265,10 @@ export async function updateAppointmentStatus(
  * 3. Update appointment with new session/slot/fees
  * 4. Log the reschedule
  */
-export async function rescheduleAppointment(data: RescheduleData) {
+export async function rescheduleAppointment(
+  data: RescheduleData,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
   return prisma.$transaction(async (tx) => {
     // STEP 1 — Release old slot
     await tx.$queryRawUnsafe(
@@ -370,6 +380,8 @@ export async function rescheduleAppointment(data: RescheduleData) {
         },
       },
     });
+
+    await writeAuditLog({ ...audit, entity_id: data.appointment_id }, tx);
 
     return {
       ...updated,
@@ -633,20 +645,3 @@ export async function findSessionInHospital(sessionId: string, hospitalId: strin
   });
 }
 
-// ── Audit Log ────────────────────────────────────────────────────────────────
-
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}

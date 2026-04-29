@@ -54,11 +54,12 @@ export async function createPatient(
     age: input.age,
   };
 
-  // 3) Create in transaction
-  const patient = await patientRepo.createWithProfile(patientData, profileData);
-
-  // 4) Audit log
-  await patientRepo.createAuditLog(userId, 'CREATE_PATIENT', 'patients', patient.patient_id);
+  // 3) Create in transaction (audit log written inside the same tx)
+  const patient = await patientRepo.createWithProfile(patientData, profileData, {
+    user_id: userId,
+    action: 'CREATE_PATIENT',
+    entity: 'patients',
+  });
 
   return patient;
 }
@@ -142,11 +143,12 @@ export async function updatePatient(
     age: input.age,
   };
 
-  // 3) Update in transaction
-  const updated = await patientRepo.updateWithProfile(patientId, patientData, profileData);
-
-  // 4) Audit log
-  await patientRepo.createAuditLog(userId, 'UPDATE_PATIENT', 'patients', patientId);
+  // 3) Update in transaction (audit log written inside the same tx)
+  const updated = await patientRepo.updateWithProfile(patientId, patientData, profileData, {
+    user_id: userId,
+    action: 'UPDATE_PATIENT',
+    entity: 'patients',
+  });
 
   return updated;
 }

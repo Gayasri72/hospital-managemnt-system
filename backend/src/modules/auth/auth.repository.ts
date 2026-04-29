@@ -6,6 +6,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 
 /**
  * Find a user by email, including their role.
@@ -14,7 +15,7 @@ import { prisma } from '../../config/database';
 export async function findUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
-    include: { role: true },
+    include: { role: true, doctor: true },
   });
 }
 
@@ -35,6 +36,7 @@ export async function findUserById(userId: string) {
       created_at: true,
       role: { select: { role_id: true, name: true } },
       hospital: { select: { hospital_id: true, name: true } },
+      doctor: { select: { doctor_id: true, name: true, specialization: true, status: true } },
     },
   });
 }
@@ -45,13 +47,26 @@ export async function findUserById(userId: string) {
  * @param tokenHash - The bcrypt hash of the refresh token.
  * @param expiresAt - When the token expires.
  */
-export async function createRefreshToken(userId: string, tokenHash: string, expiresAt: Date) {
-  return prisma.refreshToken.create({
-    data: {
-      user_id: userId,
-      token_hash: tokenHash,
-      expires_at: expiresAt,
-    },
+export async function createRefreshToken(
+  userId: string,
+  tokenHash: string,
+  expiresAt: Date,
+  audit?: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const token = await tx.refreshToken.create({
+      data: {
+        user_id: userId,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      },
+    });
+
+    if (audit) {
+      await writeAuditLog({ ...audit, entity_id: userId }, tx);
+    }
+
+    return token;
   });
 }
 
@@ -90,25 +105,3 @@ export async function deleteAllRefreshTokensForUser(userId: string) {
   });
 }
 
-/**
- * Write an entry to the audit log.
- * @param userId - The acting user's UUID.
- * @param action - What action was performed (e.g., 'LOGIN', 'LOGOUT').
- * @param entity - The entity type affected (e.g., 'USER', 'SESSION').
- * @param entityId - The specific entity ID, if applicable.
- */
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}

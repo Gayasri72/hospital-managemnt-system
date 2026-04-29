@@ -114,7 +114,7 @@ export async function createSession(
   // Step 9 — Generate slots
   const slots = generateSlots('placeholder', input.start_time, slotDuration, maxPatients);
 
-  // Step 10 + 11 — Create session + slots in transaction
+  // Step 10 + 11 — Create session + slots + audit log atomically
   const session = await sessionRepo.createSessionWithSlots(
     {
       doctor_id: input.doctor_id,
@@ -128,10 +128,8 @@ export async function createSession(
       created_by: userId,
     },
     slots,
+    { user_id: userId, action: 'CREATE_SESSION', entity: 'channel_sessions' },
   );
-
-  // Step 12 — Audit log
-  await sessionRepo.createAuditLog(userId, 'CREATE_SESSION', 'channel_sessions', session.session_id);
 
   // Step 13 — Return with optional warning
   return { ...session, ...(warning ? { warning } : {}) };
@@ -213,7 +211,11 @@ export async function updateSession(
   if (input.slot_duration) updateData['slot_duration'] = input.slot_duration;
   if (input.max_patients !== undefined) updateData['max_patients'] = input.max_patients;
 
-  await sessionRepo.updateSession(sessionId, updateData);
+  await sessionRepo.updateSession(sessionId, updateData, {
+    user_id: userId,
+    action: 'UPDATE_SESSION',
+    entity: 'channel_sessions',
+  });
 
   // Regenerate slots if time/duration changed and no bookings
   if (timeChanged && session.booked_count === 0) {
@@ -225,13 +227,11 @@ export async function updateSession(
     const slots = generateSlots(sessionId, newStartTime, newSlotDuration, newMaxPatients);
     await sessionRepo.regenerateSlots(sessionId, slots);
 
-    // Also update max_patients if auto-calculated
+    // Also update max_patients if auto-calculated (no audit — already audited above)
     if (input.max_patients === undefined) {
       await sessionRepo.updateSession(sessionId, { max_patients: newMaxPatients });
     }
   }
-
-  await sessionRepo.createAuditLog(userId, 'UPDATE_SESSION', 'channel_sessions', sessionId);
 
   // Re-fetch the updated session
   return sessionRepo.findByIdInHospital(sessionId, hospitalId);
@@ -269,13 +269,10 @@ export async function updateSessionStatus(
     );
   }
 
-  const updated = await sessionRepo.updateSession(sessionId, { status: input.status });
-
-  await sessionRepo.createAuditLog(
-    userId,
-    'UPDATE_SESSION_STATUS',
-    'channel_sessions',
+  const updated = await sessionRepo.updateSession(
     sessionId,
+    { status: input.status },
+    { user_id: userId, action: 'UPDATE_SESSION_STATUS', entity: 'channel_sessions' },
   );
 
   return updated;
@@ -311,8 +308,11 @@ export async function deleteSession(
     );
   }
 
-  await sessionRepo.deleteSessionWithSlots(sessionId);
-  await sessionRepo.createAuditLog(userId, 'DELETE_SESSION', 'channel_sessions', sessionId);
+  await sessionRepo.deleteSessionWithSlots(sessionId, {
+    user_id: userId,
+    action: 'DELETE_SESSION',
+    entity: 'channel_sessions',
+  });
 }
 
 /**

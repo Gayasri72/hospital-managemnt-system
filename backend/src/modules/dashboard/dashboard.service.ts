@@ -6,12 +6,13 @@ import * as dashboardRepo from './dashboard.repository';
 import { prisma } from '../../config/database';
 import { AppError } from '../../utils/apiError';
 import { StatusCodes } from 'http-status-codes';
+import { ROLES } from '../../constants/roles';
 
 export async function getDashboardData(user: { user_id: string; role: string; hospital_id: string }) {
   const generated_at = new Date().toISOString();
 
   // If the user is a DOCTOR, fetch scoped personal dashboard
-  if (user.role === 'Doctor') {
+  if (user.role === ROLES.DOCTOR) {
     const doctor = await prisma.doctor.findUnique({
       where: { user_id: user.user_id },
       select: { doctor_id: true }

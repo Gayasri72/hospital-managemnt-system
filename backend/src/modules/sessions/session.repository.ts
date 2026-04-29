@@ -8,6 +8,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 import type { SlotData } from './slot.util';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ interface CreateSessionData {
 export async function createSessionWithSlots(
   sessionData: CreateSessionData,
   slots: SlotData[],
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     const session = await tx.channelSession.create({
@@ -61,6 +63,8 @@ export async function createSessionWithSlots(
         }),
       ),
     );
+
+    await writeAuditLog({ ...audit, entity_id: session.session_id }, tx);
 
     return { ...session, slots: createdSlots };
   });
@@ -151,25 +155,38 @@ export async function findById(sessionId: string) {
 export async function updateSession(
   sessionId: string,
   data: Record<string, unknown>,
+  audit?: Omit<AuditEntry, 'entity_id'>,
 ) {
-  return prisma.channelSession.update({
-    where: { session_id: sessionId },
-    data,
-    include: {
-      doctor: { select: { name: true, specialization: true } },
-      branch: { select: { name: true, location: true } },
-      slots: { orderBy: { slot_number: 'asc' } },
-    },
+  return prisma.$transaction(async (tx) => {
+    const session = await tx.channelSession.update({
+      where: { session_id: sessionId },
+      data,
+      include: {
+        doctor: { select: { name: true, specialization: true } },
+        branch: { select: { name: true, location: true } },
+        slots: { orderBy: { slot_number: 'asc' } },
+      },
+    });
+
+    if (audit) {
+      await writeAuditLog({ ...audit, entity_id: sessionId }, tx);
+    }
+
+    return session;
   });
 }
 
 /**
  * Delete session + slots in a transaction.
  */
-export async function deleteSessionWithSlots(sessionId: string) {
+export async function deleteSessionWithSlots(
+  sessionId: string,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
   return prisma.$transaction(async (tx) => {
     await tx.sessionSlot.deleteMany({ where: { session_id: sessionId } });
     await tx.channelSession.delete({ where: { session_id: sessionId } });
+    await writeAuditLog({ ...audit, entity_id: sessionId }, tx);
   });
 }
 
@@ -475,20 +492,3 @@ export async function decrementBookedCount(sessionId: string) {
   });
 }
 
-// ── Audit Log ────────────────────────────────────────────────────────────────
-
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}

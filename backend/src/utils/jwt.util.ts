@@ -15,6 +15,7 @@ interface TokenPayload {
   email: string;
   role: string;
   hospitalId: string;
+  doctorId?: string;
 }
 
 /**

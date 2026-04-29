@@ -9,6 +9,7 @@
 
 import { Router } from 'express';
 import { authenticate, authorize } from '../../middleware/auth';
+import { ROLES } from '../../constants/roles';
 import { validate } from '../../middleware/validate';
 import {
   createDoctorSchema,
@@ -32,7 +33,7 @@ doctorRouter.use(authenticate);
 // POST /api/v1/doctors
 doctorRouter.post(
   '/',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ body: createDoctorSchema }),
   ctrl.createDoctor,
 );
@@ -54,7 +55,7 @@ doctorRouter.get(
 // PUT /api/v1/doctors/:id
 doctorRouter.put(
   '/:id',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: doctorIdParamSchema, body: updateDoctorSchema }),
   ctrl.updateDoctor,
 );
@@ -64,7 +65,7 @@ doctorRouter.put(
 // POST /api/v1/doctors/:id/fees
 doctorRouter.post(
   '/:id/fees',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: doctorIdParamSchema, body: createFeeSchema }),
   ctrl.addDoctorFee,
 );
@@ -72,7 +73,7 @@ doctorRouter.post(
 // GET /api/v1/doctors/:id/fees
 doctorRouter.get(
   '/:id/fees',
-  authorize('Hospital Admin', 'Accountant', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.ACCOUNTANT, ROLES.SUPER_ADMIN, ROLES.DOCTOR),
   validate({ params: doctorIdParamSchema }),
   ctrl.getDoctorFeeHistory,
 );
@@ -82,7 +83,7 @@ doctorRouter.get(
 // POST /api/v1/doctors/:id/availability
 doctorRouter.post(
   '/:id/availability',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR),
   validate({ params: doctorIdParamSchema, body: setAvailabilitySchema }),
   ctrl.setAvailability,
 );
@@ -99,7 +100,7 @@ doctorRouter.get(
 // POST /api/v1/doctors/:id/exceptions
 doctorRouter.post(
   '/:id/exceptions',
-  authorize('Hospital Admin', 'Super Admin', 'Receptionist'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.RECEPTIONIST, ROLES.DOCTOR),
   validate({ params: doctorIdParamSchema, body: createExceptionSchema }),
   ctrl.addException,
 );
@@ -114,7 +115,7 @@ doctorRouter.get(
 // DELETE /api/v1/doctors/:id/exceptions/:exception_id
 doctorRouter.delete(
   '/:id/exceptions/:exception_id',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.DOCTOR),
   validate({ params: exceptionIdParamSchema }),
   ctrl.removeException,
 );
@@ -139,7 +140,7 @@ hospitalChargeRouter.use(authenticate);
 // POST /api/v1/hospital/charges
 hospitalChargeRouter.post(
   '/charges',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ body: createHospitalChargeSchema }),
   ctrl.addHospitalCharge,
 );

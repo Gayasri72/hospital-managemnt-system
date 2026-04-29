@@ -11,9 +11,16 @@
 // - No SQL in this file — delegates to payment.repository
 // ──────────────────────────────────────────────────────────────────────────────
 
+import { Prisma } from '@prisma/client';
 import { AppError } from '../../utils/apiError';
 import * as paymentRepo from './payment.repository';
 import { formatReceiptNumber } from './receipt.util';
+
+// Helper: convert any Decimal | number | string into a Prisma.Decimal.
+// Why: Number(decimal) loses precision past ~15 digits and accumulates rounding
+// errors when summing currency values. Use Decimal for all arithmetic and only
+// stringify at the API boundary.
+const D = (v: Prisma.Decimal | number | string): Prisma.Decimal => new Prisma.Decimal(v);
 import type {
   CreatePaymentInput,
   AddTransactionInput,
@@ -60,26 +67,26 @@ export async function createPayment(
   }
 
   // STEP 2 — Copy fee snapshot from appointment (NEVER recalculate)
-  const totalAmount = Number(appointment.total_fee);
-  const doctorAmount = Number(appointment.doctor_fee);
-  const hospitalAmount = Number(appointment.hospital_charge);
+  const totalAmount = D(appointment.total_fee);
+  const doctorAmount = D(appointment.doctor_fee);
+  const hospitalAmount = D(appointment.hospital_charge);
 
-  // STEP 3 — Insert payment
-  const payment = await paymentRepo.createPayment({
-    appointment_id: input.appointment_id,
-    hospital_id: hospitalId,
-    total_amount: totalAmount,
-    doctor_amount: doctorAmount,
-    hospital_amount: hospitalAmount,
-  });
-
-  // STEP 4 — Audit log
-  await paymentRepo.createAuditLog(userId, 'CREATE_PAYMENT', 'payments', payment.payment_id);
+  // STEP 3 — Insert payment + audit atomically
+  const payment = await paymentRepo.createPayment(
+    {
+      appointment_id: input.appointment_id,
+      hospital_id: hospitalId,
+      total_amount: totalAmount,
+      doctor_amount: doctorAmount,
+      hospital_amount: hospitalAmount,
+    },
+    { user_id: userId, action: 'CREATE_PAYMENT', entity: 'payments' },
+  );
 
   return {
     ...payment,
     receipt_number: formatReceiptNumber(payment.payment_id),
-    balance_remaining: totalAmount,
+    balance_remaining: totalAmount.toFixed(2),
   };
 }
 
@@ -104,41 +111,40 @@ export async function addTransaction(
     throw new AppError('Payment has been refunded.', 409, 'PAYMENT_REFUNDED');
   }
 
-  // STEP 2 — Validate amount
-  const currentPaid = Number(payment.amount_paid);
-  const total = Number(payment.total_amount);
-  const remaining = total - currentPaid;
+  // STEP 2 — Validate amount (all Decimal math — no float drift)
+  const currentPaid = D(payment.amount_paid);
+  const total = D(payment.total_amount);
+  const remaining = total.minus(currentPaid);
+  const inputAmount = D(input.amount);
 
-  if (input.amount > remaining) {
+  if (inputAmount.greaterThan(remaining)) {
     throw new AppError(
-      `Amount Rs.${input.amount.toFixed(2)} exceeds remaining balance of Rs.${remaining.toFixed(2)}.`,
+      `Amount Rs.${inputAmount.toFixed(2)} exceeds remaining balance of Rs.${remaining.toFixed(2)}.`,
       400,
       'AMOUNT_EXCEEDS_BALANCE',
     );
   }
 
-  // STEP 3 — Record transaction
+  // STEP 3 — Record transaction + audit atomically
   const updated = await paymentRepo.addTransaction(
     paymentId,
     hospitalId,
     {
       method: input.method,
-      amount: input.amount,
+      amount: inputAmount,
       reference: input.reference,
       note: input.note,
       processed_by: userId,
     },
     currentPaid,
     total,
+    { user_id: userId, action: 'RECORD_TRANSACTION', entity: 'payment_transactions' },
   );
-
-  // STEP 4 — Audit log
-  await paymentRepo.createAuditLog(userId, 'RECORD_TRANSACTION', 'payment_transactions', paymentId);
 
   return {
     ...updated,
     receipt_number: formatReceiptNumber(updated.payment_id),
-    balance_remaining: Number(updated.total_amount) - Number(updated.amount_paid),
+    balance_remaining: D(updated.total_amount).minus(D(updated.amount_paid)).toFixed(2),
   };
 }
 
@@ -163,11 +169,12 @@ export async function issueRefund(
     );
   }
 
-  const currentPaid = Number(payment.amount_paid);
+  const currentPaid = D(payment.amount_paid);
+  const inputAmount = D(input.amount);
 
-  if (input.amount > currentPaid) {
+  if (inputAmount.greaterThan(currentPaid)) {
     throw new AppError(
-      `Refund amount Rs.${input.amount.toFixed(2)} exceeds amount paid of Rs.${currentPaid.toFixed(2)}.`,
+      `Refund amount Rs.${inputAmount.toFixed(2)} exceeds amount paid of Rs.${currentPaid.toFixed(2)}.`,
       400,
       'REFUND_EXCEEDS_PAID',
     );
@@ -178,20 +185,19 @@ export async function issueRefund(
     hospitalId,
     {
       method: input.method,
-      amount: input.amount,
+      amount: inputAmount,
       reason: input.reason,
       reference: input.reference,
       processed_by: userId,
     },
     currentPaid,
+    { user_id: userId, action: 'ISSUE_REFUND', entity: 'payment_transactions' },
   );
-
-  await paymentRepo.createAuditLog(userId, 'ISSUE_REFUND', 'payment_transactions', paymentId);
 
   return {
     ...updated,
     receipt_number: formatReceiptNumber(updated.payment_id),
-    balance_remaining: Number(updated.total_amount) - Number(updated.amount_paid),
+    balance_remaining: D(updated.total_amount).minus(D(updated.amount_paid)).toFixed(2),
   };
 }
 
@@ -206,7 +212,7 @@ export async function getPaymentById(paymentId: string, hospitalId: string) {
   return {
     ...payment,
     receipt_number: formatReceiptNumber(payment.payment_id),
-    balance_remaining: Number(payment.total_amount) - Number(payment.amount_paid),
+    balance_remaining: D(payment.total_amount).minus(D(payment.amount_paid)).toFixed(2),
   };
 }
 
@@ -224,7 +230,7 @@ export async function getPaymentByAppointmentId(
   return {
     ...payment,
     receipt_number: formatReceiptNumber(payment.payment_id),
-    balance_remaining: Number(payment.total_amount) - Number(payment.amount_paid),
+    balance_remaining: D(payment.total_amount).minus(D(payment.amount_paid)).toFixed(2),
   };
 }
 

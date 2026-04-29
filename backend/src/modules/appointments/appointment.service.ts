@@ -10,6 +10,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { AppError } from '../../utils/apiError';
+import { ROLES } from '../../constants/roles';
 import * as appointmentRepo from './appointment.repository';
 import type {
   CreateAppointmentInput,
@@ -31,14 +32,14 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 
 // Role permissions per transition
 const TRANSITION_ROLES: Record<string, string[]> = {
-  'booked→confirmed':    ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'booked→cancelled':    ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'booked→no_show':      ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'confirmed→arrived':   ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'confirmed→cancelled': ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'confirmed→no_show':   ['Receptionist', 'Hospital Admin', 'Super Admin'],
-  'arrived→completed':   ['Doctor', 'Hospital Admin', 'Super Admin'],
-  'arrived→no_show':     ['Receptionist', 'Hospital Admin', 'Super Admin'],
+  'booked→confirmed':    [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'booked→cancelled':    [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'booked→no_show':      [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'confirmed→arrived':   [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'confirmed→cancelled': [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'confirmed→no_show':   [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'arrived→completed':   [ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
+  'arrived→no_show':     [ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN],
 };
 
 // ── Create Appointment ───────────────────────────────────────────────────────
@@ -106,26 +107,21 @@ export async function createAppointment(
   const hospitalCharge = Number(hospitalChargeRow.charge_amount);
   const totalFee = doctorFee + hospitalCharge;
 
-  // STEP 3 — Create appointment (inside transaction in repository)
-  const appointment = await appointmentRepo.createAppointment({
-    hospital_id: hospitalId,
-    patient_id: input.patient_id,
-    doctor_id: session.doctor.doctor_id,
-    session_id: input.session_id,
-    slot_id: input.slot_id,
-    doctor_fee: doctorFee,
-    hospital_charge: hospitalCharge,
-    total_fee: totalFee,
-    notes: input.notes,
-    booked_by: userId,
-  });
-
-  // STEP 4 — Audit log
-  await appointmentRepo.createAuditLog(
-    userId,
-    'CREATE_APPOINTMENT',
-    'appointments',
-    appointment.appointment_id,
+  // STEP 3 — Create appointment + audit log atomically
+  const appointment = await appointmentRepo.createAppointment(
+    {
+      hospital_id: hospitalId,
+      patient_id: input.patient_id,
+      doctor_id: session.doctor.doctor_id,
+      session_id: input.session_id,
+      slot_id: input.slot_id,
+      doctor_fee: doctorFee,
+      hospital_charge: hospitalCharge,
+      total_fee: totalFee,
+      notes: input.notes,
+      booked_by: userId,
+    },
+    { user_id: userId, action: 'CREATE_APPOINTMENT', entity: 'appointments' },
   );
 
   // STEP 5 — Return enriched response
@@ -154,7 +150,7 @@ export async function listAppointments(
 ) {
   // Doctor role: force filter to their own appointments
   const effectiveOptions = { ...options };
-  if (userRole === 'Doctor' && userDoctorId) {
+  if (userRole === ROLES.DOCTOR && userDoctorId) {
     effectiveOptions.doctor_id = userDoctorId;
   }
 
@@ -168,7 +164,7 @@ export async function getTodayAppointments(
   userRole: string,
   userDoctorId?: string,
 ) {
-  const doctorId = userRole === 'Doctor' ? userDoctorId : undefined;
+  const doctorId = userRole === ROLES.DOCTOR ? userDoctorId : undefined;
   const appointments = await appointmentRepo.findTodayByHospital(hospitalId, doctorId);
 
   // Group by session
@@ -209,7 +205,7 @@ export async function getAppointmentById(
   }
 
   // Doctor role: verify this is their appointment
-  if (userRole === 'Doctor' && userDoctorId && appointment.doctor_id !== userDoctorId) {
+  if (userRole === ROLES.DOCTOR && userDoctorId && appointment.doctor_id !== userDoctorId) {
     throw new AppError('Appointment not found.', 404, 'APPOINTMENT_NOT_FOUND');
   }
 
@@ -256,13 +252,7 @@ export async function updateAppointmentStatus(
     input.status,
     userId,
     input.reason,
-  );
-
-  await appointmentRepo.createAuditLog(
-    userId,
-    'UPDATE_APPOINTMENT_STATUS',
-    'appointments',
-    appointmentId,
+    { user_id: userId, action: 'UPDATE_APPOINTMENT_STATUS', entity: 'appointments' },
   );
 
   return updated;
@@ -337,21 +327,32 @@ export async function rescheduleAppointment(
   const newHospitalCharge = Number(hospitalChargeRow.charge_amount);
   const newTotalFee = newDoctorFee + newHospitalCharge;
 
-  // Execute reschedule transaction
-  const updated = await appointmentRepo.rescheduleAppointment({
-    appointment_id: appointmentId,
-    old_session_id: appointment.session_id!,
-    old_slot_id: appointment.slot_id!,
-    new_session_id: input.new_session_id,
-    new_slot_id: input.new_slot_id,
-    new_doctor_fee: newDoctorFee,
-    new_hospital_charge: newHospitalCharge,
-    new_total_fee: newTotalFee,
-    user_id: userId,
-    old_status: appointment.status,
-  });
+  // Reschedule requires both session_id and slot_id on the existing appointment.
+  // Either being null means the appointment is orphaned and shouldn't be rescheduled.
+  if (!appointment.session_id || !appointment.slot_id) {
+    throw new AppError(
+      'Appointment is missing its session/slot link and cannot be rescheduled.',
+      409,
+      'RESCHEDULE_NOT_ALLOWED',
+    );
+  }
 
-  await appointmentRepo.createAuditLog(userId, 'RESCHEDULE_APPOINTMENT', 'appointments', appointmentId);
+  // Execute reschedule transaction (audit log written inside the same tx)
+  const updated = await appointmentRepo.rescheduleAppointment(
+    {
+      appointment_id: appointmentId,
+      old_session_id: appointment.session_id,
+      old_slot_id: appointment.slot_id,
+      new_session_id: input.new_session_id,
+      new_slot_id: input.new_slot_id,
+      new_doctor_fee: newDoctorFee,
+      new_hospital_charge: newHospitalCharge,
+      new_total_fee: newTotalFee,
+      user_id: userId,
+      old_status: appointment.status,
+    },
+    { user_id: userId, action: 'RESCHEDULE_APPOINTMENT', entity: 'appointments' },
+  );
 
   return updated;
 }

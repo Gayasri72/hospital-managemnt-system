@@ -2,14 +2,14 @@ import { Router } from 'express';
 import * as controller from './medical.controller';
 import * as validator from './medical.validation';
 import { authenticate, authorize } from '../../middleware/auth';
+import { ROLES } from '../../constants/roles';
 
 const router = Router();
 
-// Define Role constants based on the prompt access rules
-const ROLE_DOCTOR = 'Doctor';
-const ROLE_ADMIN = 'Hospital Admin';
-const ROLE_SUPER_ADMIN = 'Super Admin';
-const ROLE_RECEPTIONIST = 'Receptionist';
+const ROLE_DOCTOR = ROLES.DOCTOR;
+const ROLE_ADMIN = ROLES.HOSPITAL_ADMIN;
+const ROLE_SUPER_ADMIN = ROLES.SUPER_ADMIN;
+const ROLE_RECEPTIONIST = ROLES.RECEPTIONIST;
 
 // Require Authentication for all routes
 router.use(authenticate);

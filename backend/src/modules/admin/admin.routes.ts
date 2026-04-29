@@ -12,6 +12,7 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
+import { ROLES } from '../../constants/roles';
 import {
   createRoleSchema,
   updateRoleSchema,
@@ -33,7 +34,7 @@ router.use(authenticate);
 // GET /api/v1/admin/permissions — list all available permissions
 router.get(
   '/permissions',
-  authorize('Super Admin'),
+  authorize(ROLES.SUPER_ADMIN),
   ctrl.getAllPermissions,
 );
 
@@ -42,14 +43,14 @@ router.get(
 // GET /api/v1/admin/roles — list all roles with permissions
 router.get(
   '/roles',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   ctrl.getAllRoles,
 );
 
 // GET /api/v1/admin/roles/:id — get single role details
 router.get(
   '/roles/:id',
-  authorize('Super Admin'),
+  authorize(ROLES.SUPER_ADMIN),
   validate({ params: roleIdParamSchema }),
   ctrl.getRoleById,
 );
@@ -57,7 +58,7 @@ router.get(
 // POST /api/v1/admin/roles — create custom role with permissions
 router.post(
   '/roles',
-  authorize('Super Admin'),
+  authorize(ROLES.SUPER_ADMIN),
   validate({ body: createRoleSchema }),
   ctrl.createRole,
 );
@@ -65,7 +66,7 @@ router.post(
 // PUT /api/v1/admin/roles/:id — update role name and/or permissions
 router.put(
   '/roles/:id',
-  authorize('Super Admin'),
+  authorize(ROLES.SUPER_ADMIN),
   validate({ params: roleIdParamSchema, body: updateRoleSchema }),
   ctrl.updateRole,
 );
@@ -73,7 +74,7 @@ router.put(
 // DELETE /api/v1/admin/roles/:id — delete custom role
 router.delete(
   '/roles/:id',
-  authorize('Super Admin'),
+  authorize(ROLES.SUPER_ADMIN),
   validate({ params: roleIdParamSchema }),
   ctrl.deleteRole,
 );
@@ -83,7 +84,7 @@ router.delete(
 // GET /api/v1/admin/users — list users (paginated)
 router.get(
   '/users',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ query: listUsersQuerySchema }),
   ctrl.listUsers,
 );
@@ -91,7 +92,7 @@ router.get(
 // GET /api/v1/admin/users/:id — get user details
 router.get(
   '/users/:id',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ params: userIdParamSchema }),
   ctrl.getUserById,
 );
@@ -99,7 +100,7 @@ router.get(
 // POST /api/v1/admin/users — create new user
 router.post(
   '/users',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ body: createUserSchema }),
   ctrl.createUser,
 );
@@ -107,7 +108,7 @@ router.post(
 // PUT /api/v1/admin/users/:id — update user details
 router.put(
   '/users/:id',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ params: userIdParamSchema, body: updateUserSchema }),
   ctrl.updateUser,
 );
@@ -115,7 +116,7 @@ router.put(
 // PATCH /api/v1/admin/users/:id/status — activate/deactivate
 router.patch(
   '/users/:id/status',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ params: userIdParamSchema, body: updateUserStatusSchema }),
   ctrl.updateUserStatus,
 );
@@ -123,7 +124,7 @@ router.patch(
 // PATCH /api/v1/admin/users/:id/password — reset user's password
 router.patch(
   '/users/:id/password',
-  authorize('Super Admin', 'Hospital Admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.HOSPITAL_ADMIN),
   validate({ params: userIdParamSchema, body: resetPasswordSchema }),
   ctrl.resetPassword,
 );

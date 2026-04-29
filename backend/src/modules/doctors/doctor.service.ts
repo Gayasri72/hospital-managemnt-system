@@ -10,6 +10,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { AppError } from '../../utils/apiError';
+import { hashPassword } from '../../utils/password.util';
 import * as doctorRepo from './doctor.repository';
 import type {
   CreateDoctorInput,
@@ -24,6 +25,7 @@ import type {
 
 /**
  * Create a new doctor with profile and initial fee.
+ * Optionally creates a linked user account for doctor login.
  */
 export async function createDoctor(
   input: CreateDoctorInput,
@@ -34,25 +36,45 @@ export async function createDoctor(
     ? new Date(input.effective_from)
     : new Date();
 
-  const doctor = await doctorRepo.createWithProfileAndFee(
-    { hospital_id: hospitalId, name: input.name, specialization: input.specialization },
-    {
-      contact_number: input.contact_number,
-      email: input.email,
-      qualifications: input.qualifications,
-      experience: input.experience,
-      bio: input.bio,
-    },
-    {
-      hospital_id: hospitalId,
-      consultation_fee: input.consultation_fee,
-      effective_from: effectiveFrom,
-    },
-  );
+  // Prepare login data if create_login is requested
+  let loginData: { email: string; password_hash: string } | undefined;
+  if (input.create_login && input.login_email && input.login_password) {
+    const passwordHash = await hashPassword(input.login_password);
+    loginData = { email: input.login_email, password_hash: passwordHash };
+  }
 
-  await doctorRepo.createAuditLog(userId, 'CREATE_DOCTOR', 'doctors', doctor.doctor_id);
+  try {
+    const doctor = await doctorRepo.createWithProfileAndFee(
+      { hospital_id: hospitalId, name: input.name, specialization: input.specialization },
+      {
+        contact_number: input.contact_number,
+        email: input.email,
+        qualifications: input.qualifications,
+        experience: input.experience,
+        bio: input.bio,
+      },
+      {
+        hospital_id: hospitalId,
+        consultation_fee: input.consultation_fee,
+        effective_from: effectiveFrom,
+      },
+      loginData,
+      { user_id: userId, action: 'CREATE_DOCTOR', entity: 'doctors' },
+    );
 
-  return doctor;
+    return doctor;
+  } catch (error: unknown) {
+    // Handle known errors from the repository transaction
+    if (error instanceof Error) {
+      if (error.message.includes('email already exists')) {
+        throw new AppError('A user with this login email already exists.', 409, 'EMAIL_ALREADY_EXISTS');
+      }
+      if (error.message.includes('Doctor role not found')) {
+        throw new AppError('Doctor role not found in the system. Please create it first.', 500, 'DOCTOR_ROLE_MISSING');
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -147,9 +169,12 @@ export async function updateDoctor(
     bio: input.bio,
   };
 
-  const updated = await doctorRepo.updateWithProfile(doctorId, doctorData, profileData);
-
-  await doctorRepo.createAuditLog(userId, 'UPDATE_DOCTOR', 'doctors', doctorId);
+  const updated = await doctorRepo.updateWithProfile(
+    doctorId,
+    doctorData,
+    profileData,
+    { user_id: userId, action: 'UPDATE_DOCTOR', entity: 'doctors' },
+  );
 
   return updated;
 }
@@ -175,14 +200,15 @@ export async function addDoctorFee(
     ? new Date(input.effective_from)
     : new Date();
 
-  const fee = await doctorRepo.createFee({
-    doctor_id: doctorId,
-    hospital_id: hospitalId,
-    consultation_fee: input.consultation_fee,
-    effective_from: effectiveFrom,
-  });
-
-  await doctorRepo.createAuditLog(userId, 'UPDATE_DOCTOR_FEE', 'doctor_fees', fee.fee_id);
+  const fee = await doctorRepo.createFee(
+    {
+      doctor_id: doctorId,
+      hospital_id: hospitalId,
+      consultation_fee: input.consultation_fee,
+      effective_from: effectiveFrom,
+    },
+    { user_id: userId, action: 'UPDATE_DOCTOR_FEE', entity: 'doctor_fees' },
+  );
 
   return fee;
 }
@@ -220,9 +246,8 @@ export async function addHospitalCharge(
     hospitalId,
     input.charge_amount,
     effectiveFrom,
+    { user_id: userId, action: 'UPDATE_HOSPITAL_CHARGE', entity: 'hospital_charges' },
   );
-
-  await doctorRepo.createAuditLog(userId, 'UPDATE_HOSPITAL_CHARGE', 'hospital_charges', charge.charge_id);
 
   return charge;
 }
@@ -250,9 +275,11 @@ export async function setAvailability(
     throw new AppError('Doctor not found.', 404, 'DOCTOR_NOT_FOUND');
   }
 
-  const schedule = await doctorRepo.replaceAvailability(doctorId, input.schedule);
-
-  await doctorRepo.createAuditLog(userId, 'UPDATE_DOCTOR_AVAILABILITY', 'doctor_availability', doctorId);
+  const schedule = await doctorRepo.replaceAvailability(
+    doctorId,
+    input.schedule,
+    { user_id: userId, action: 'UPDATE_DOCTOR_AVAILABILITY', entity: 'doctor_availability' },
+  );
 
   return schedule;
 }
@@ -298,9 +325,12 @@ export async function addException(
     );
   }
 
-  const exception = await doctorRepo.createException(doctorId, exceptionDate, input.reason);
-
-  await doctorRepo.createAuditLog(userId, 'ADD_DOCTOR_EXCEPTION', 'doctor_exceptions', exception.exception_id);
+  const exception = await doctorRepo.createException(
+    doctorId,
+    exceptionDate,
+    input.reason,
+    { user_id: userId, action: 'ADD_DOCTOR_EXCEPTION', entity: 'doctor_exceptions' },
+  );
 
   return exception;
 }
@@ -348,7 +378,8 @@ export async function removeException(
     throw new AppError('Exception not found.', 404, 'DOCTOR_NOT_FOUND');
   }
 
-  await doctorRepo.deleteException(exceptionId);
-
-  await doctorRepo.createAuditLog(userId, 'REMOVE_DOCTOR_EXCEPTION', 'doctor_exceptions', exceptionId);
+  await doctorRepo.deleteException(
+    exceptionId,
+    { user_id: userId, action: 'REMOVE_DOCTOR_EXCEPTION', entity: 'doctor_exceptions' },
+  );
 }

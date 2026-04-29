@@ -8,6 +8,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export async function existsByNicInHospital(hospitalId: string, nic: string): Pr
 export async function createWithProfile(
   patientData: CreatePatientData,
   profileData: CreateProfileData,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     const patient = await tx.patient.create({
@@ -83,6 +85,8 @@ export async function createWithProfile(
         age: profileData.age ?? null,
       },
     });
+
+    await writeAuditLog({ ...audit, entity_id: patient.patient_id }, tx);
 
     return { ...patient, profile };
   });
@@ -154,6 +158,7 @@ export async function updateWithProfile(
   patientId: string,
   patientData: UpdatePatientData,
   profileData: UpdateProfileData,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     // Update patient (only non-undefined fields)
@@ -184,6 +189,8 @@ export async function updateWithProfile(
       },
     });
 
+    await writeAuditLog({ ...audit, entity_id: patientId }, tx);
+
     return { ...patient, profile };
   });
 }
@@ -201,21 +208,3 @@ export async function findAppointmentsByPatient(patientId: string, hospitalId: s
   });
 }
 
-/**
- * Write an entry to the audit log.
- */
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}

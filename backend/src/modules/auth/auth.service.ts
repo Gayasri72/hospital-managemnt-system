@@ -8,6 +8,7 @@
 import { AppError } from '../../utils/apiError';
 import { comparePassword, hashPassword } from '../../utils/password.util';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.util';
+import { writeAuditLog } from '../../utils/audit';
 import * as authRepo from './auth.repository';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ interface LoginResult {
     email: string;
     role: string;
     hospital_id: string;
+    doctor_id?: string;
   };
 }
 
@@ -62,25 +64,29 @@ export async function login(email: string, password: string): Promise<LoginResul
     throw new AppError('Invalid email or password.', 401);
   }
 
-  // 4) Build token payload
+  // 4) Build token payload (include doctorId if user is linked to a doctor)
+  const doctorId = user.doctor?.doctor_id;
   const tokenPayload = {
     userId: user.user_id,
     email: user.email,
     role: user.role.name,
     hospitalId: user.hospital_id,
+    ...(doctorId && { doctorId }),
   };
 
   // 5) Sign tokens
   const accessToken = signAccessToken(tokenPayload);
   const refreshToken = signRefreshToken(tokenPayload);
 
-  // 6) Store hashed refresh token in DB
+  // 6) Store hashed refresh token in DB + audit LOGIN atomically
   const refreshTokenHash = await hashPassword(refreshToken);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  await authRepo.createRefreshToken(user.user_id, refreshTokenHash, expiresAt);
-
-  // 7) Write audit log
-  await authRepo.createAuditLog(user.user_id, 'LOGIN', 'USER', user.user_id);
+  await authRepo.createRefreshToken(
+    user.user_id,
+    refreshTokenHash,
+    expiresAt,
+    { user_id: user.user_id, action: 'LOGIN', entity: 'USER' },
+  );
 
   return {
     accessToken,
@@ -91,6 +97,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       email: user.email,
       role: user.role.name,
       hospital_id: user.hospital_id,
+      ...(doctorId && { doctor_id: doctorId }),
     },
   };
 }
@@ -185,8 +192,8 @@ export async function logout(oldRefreshToken: string, userId: string): Promise<v
     }
   }
 
-  // Write audit log
-  await authRepo.createAuditLog(userId, 'LOGOUT', 'USER', userId);
+  // LOGOUT is logged regardless of whether a matching token was found.
+  await writeAuditLog({ user_id: userId, action: 'LOGOUT', entity: 'USER', entity_id: userId });
 }
 
 /**

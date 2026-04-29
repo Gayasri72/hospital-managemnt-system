@@ -47,7 +47,29 @@ export const createDoctorSchema = z.object({
     .string()
     .refine((val) => !isNaN(Date.parse(val)), 'Must be a valid date')
     .optional(),
-});
+  // ── Optional login account creation ──
+  create_login: z.boolean().optional().default(false),
+  login_email: z
+    .string()
+    .email('Please provide a valid login email')
+    .transform((val) => val.toLowerCase().trim())
+    .optional(),
+  login_password: z
+    .string()
+    .min(6, 'Login password must be at least 6 characters')
+    .optional(),
+}).refine(
+  (data) => {
+    if (data.create_login) {
+      return !!data.login_email && !!data.login_password;
+    }
+    return true;
+  },
+  {
+    message: 'login_email and login_password are required when create_login is true',
+    path: ['login_email'],
+  },
+);
 
 export type CreateDoctorInput = z.infer<typeof createDoctorSchema>;
 

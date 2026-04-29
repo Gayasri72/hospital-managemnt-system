@@ -11,6 +11,7 @@
 
 import { AppError } from '../../utils/apiError';
 import { hashPassword } from '../../utils/password.util';
+import { ALL_ROLES } from '../../constants/roles';
 import * as adminRepo from './admin.repository';
 import type {
   CreateRoleInput,
@@ -21,7 +22,7 @@ import type {
 } from './admin.validation';
 
 // Default (system) roles that cannot be deleted or renamed
-const PROTECTED_ROLES = ['Super Admin', 'Hospital Admin', 'Receptionist', 'Doctor', 'Accountant'];
+const PROTECTED_ROLES: string[] = [...ALL_ROLES];
 
 // ── Permissions ──────────────────────────────────────────────────────────────
 
@@ -87,9 +88,11 @@ export async function createRole(input: CreateRoleInput, userId: string) {
     );
   }
 
-  const role = await adminRepo.createRole(input.name, input.permission_ids);
-
-  await adminRepo.createAuditLog(userId, 'CREATE_ROLE', 'roles', String(role?.role_id));
+  const role = await adminRepo.createRole(
+    input.name,
+    input.permission_ids,
+    { user_id: userId, action: 'CREATE_ROLE', entity: 'roles' },
+  );
 
   return role
     ? {
@@ -142,12 +145,14 @@ export async function updateRole(roleId: number, input: UpdateRoleInput, userId:
     }
   }
 
-  const updated = await adminRepo.updateRole(roleId, {
-    name: input.name,
-    permissionIds: input.permission_ids,
-  });
-
-  await adminRepo.createAuditLog(userId, 'UPDATE_ROLE', 'roles', String(roleId));
+  const updated = await adminRepo.updateRole(
+    roleId,
+    {
+      name: input.name,
+      permissionIds: input.permission_ids,
+    },
+    { user_id: userId, action: 'UPDATE_ROLE', entity: 'roles' },
+  );
 
   return updated
     ? {
@@ -188,8 +193,10 @@ export async function deleteRole(roleId: number, userId: string) {
     );
   }
 
-  await adminRepo.deleteRole(roleId);
-  await adminRepo.createAuditLog(userId, 'DELETE_ROLE', 'roles', String(roleId));
+  await adminRepo.deleteRole(
+    roleId,
+    { user_id: userId, action: 'DELETE_ROLE', entity: 'roles' },
+  );
 }
 
 // ── Users ────────────────────────────────────────────────────────────────────
@@ -237,15 +244,16 @@ export async function createUser(input: CreateUserInput, hospitalId: string, act
   // Hash password
   const passwordHash = await hashPassword(input.password);
 
-  const user = await adminRepo.createUser({
-    hospital_id: hospitalId,
-    role_id: input.role_id,
-    name: input.name,
-    email: input.email,
-    password_hash: passwordHash,
-  });
-
-  await adminRepo.createAuditLog(actorUserId, 'CREATE_USER', 'users', user.user_id);
+  const user = await adminRepo.createUser(
+    {
+      hospital_id: hospitalId,
+      role_id: input.role_id,
+      name: input.name,
+      email: input.email,
+      password_hash: passwordHash,
+    },
+    { user_id: actorUserId, action: 'CREATE_USER', entity: 'users' },
+  );
 
   return user;
 }
@@ -283,13 +291,15 @@ export async function updateUser(
   if (input.email) updateData['email'] = input.email;
   if (input.role_id) updateData['role_id'] = input.role_id;
 
-  const updated = await adminRepo.updateUser(userId, updateData as {
-    name?: string;
-    email?: string;
-    role_id?: number;
-  });
-
-  await adminRepo.createAuditLog(actorUserId, 'UPDATE_USER', 'users', userId);
+  const updated = await adminRepo.updateUser(
+    userId,
+    updateData as {
+      name?: string;
+      email?: string;
+      role_id?: number;
+    },
+    { user_id: actorUserId, action: 'UPDATE_USER', entity: 'users' },
+  );
 
   return updated;
 }
@@ -310,9 +320,11 @@ export async function updateUserStatus(
     throw new AppError('You cannot deactivate your own account.', 403, 'CANNOT_DEACTIVATE_SELF');
   }
 
-  const updated = await adminRepo.updateUserStatus(userId, status);
-
-  await adminRepo.createAuditLog(actorUserId, `USER_${status}`, 'users', userId);
+  const updated = await adminRepo.updateUserStatus(
+    userId,
+    status,
+    { user_id: actorUserId, action: `USER_${status}`, entity: 'users' },
+  );
 
   return updated;
 }
@@ -329,7 +341,9 @@ export async function resetUserPassword(
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await adminRepo.updateUserPassword(userId, passwordHash);
-
-  await adminRepo.createAuditLog(actorUserId, 'RESET_USER_PASSWORD', 'users', userId);
+  await adminRepo.updateUserPassword(
+    userId,
+    passwordHash,
+    { user_id: actorUserId, action: 'RESET_USER_PASSWORD', entity: 'users' },
+  );
 }

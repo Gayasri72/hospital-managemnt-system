@@ -35,6 +35,7 @@ import adminRouter from './modules/admin/admin.routes';
 import medicalRouter from './modules/medical/medical.routes';
 import dashboardRouter from './modules/dashboard/dashboard.routes';
 import generalReportsRouter from './modules/reports/report.routes';
+import { branchRouter } from './modules/branches/branch.routes';
 
 const app = express();
 
@@ -42,10 +43,13 @@ const app = express();
 // Helmet sets various HTTP headers (CSP, HSTS, X-Content-Type-Options, etc.)
 app.use(helmet());
 
+// Parse CORS_ORIGIN into an array to support multiple origins (e.g., localhost and production)
+const allowedOrigins = config.corsOrigin.split(',').map(origin => origin.trim());
+
 // CORS — only allow requests from trusted origins
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -83,6 +87,8 @@ app.use(`${API_PREFIX}/reports`, generalReportsRouter); // new appointments/pati
 app.use(`${API_PREFIX}/dashboard`, dashboardRouter);
 app.use(`${API_PREFIX}/admin`, adminRouter);
 app.use(`${API_PREFIX}`, medicalRouter); // Maps all medical routes from root prefix API_PREFIX
+
+app.use(`${API_PREFIX}/branches`, branchRouter);
 
 // Future module routes will be added here:
 

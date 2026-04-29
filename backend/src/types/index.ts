@@ -10,6 +10,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   hospitalId: string;
+  doctorId?: string;
   iat?: number;
   exp?: number;
 }

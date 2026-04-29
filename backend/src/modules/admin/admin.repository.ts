@@ -9,6 +9,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 
 // ── Permissions ──────────────────────────────────────────────────────────────
 
@@ -66,7 +67,11 @@ export async function findRoleByName(name: string) {
 /**
  * Create a new role and assign permissions — all in one transaction.
  */
-export async function createRole(name: string, permissionIds: number[]) {
+export async function createRole(
+  name: string,
+  permissionIds: number[],
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
   return prisma.$transaction(async (tx) => {
     const role = await tx.role.create({
       data: { name },
@@ -80,6 +85,8 @@ export async function createRole(name: string, permissionIds: number[]) {
         })),
       });
     }
+
+    await writeAuditLog({ ...audit, entity_id: String(role.role_id) }, tx);
 
     return tx.role.findUnique({
       where: { role_id: role.role_id },
@@ -100,6 +107,7 @@ export async function createRole(name: string, permissionIds: number[]) {
 export async function updateRole(
   roleId: number,
   data: { name?: string; permissionIds?: number[] },
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     // Update role name if provided
@@ -128,6 +136,8 @@ export async function updateRole(
       }
     }
 
+    await writeAuditLog({ ...audit, entity_id: String(roleId) }, tx);
+
     return tx.role.findUnique({
       where: { role_id: roleId },
       include: {
@@ -143,9 +153,18 @@ export async function updateRole(
 /**
  * Delete a role.
  */
-export async function deleteRole(roleId: number) {
-  return prisma.role.delete({
-    where: { role_id: roleId },
+export async function deleteRole(
+  roleId: number,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.role.delete({
+      where: { role_id: roleId },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: String(roleId) }, tx);
+
+    return deleted;
   });
 }
 
@@ -250,31 +269,40 @@ export async function findUserByEmail(email: string) {
 /**
  * Create a new user.
  */
-export async function createUser(data: {
-  hospital_id: string;
-  role_id: number;
-  name: string;
-  email: string;
-  password_hash: string;
-}) {
-  return prisma.user.create({
-    data: {
-      hospital_id: data.hospital_id,
-      role_id: data.role_id,
-      name: data.name,
-      email: data.email,
-      password_hash: data.password_hash,
-      status: 'ACTIVE',
-    },
-    select: {
-      user_id: true,
-      name: true,
-      email: true,
-      status: true,
-      created_at: true,
-      role: { select: { role_id: true, name: true } },
-      hospital: { select: { name: true } },
-    },
+export async function createUser(
+  data: {
+    hospital_id: string;
+    role_id: number;
+    name: string;
+    email: string;
+    password_hash: string;
+  },
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        hospital_id: data.hospital_id,
+        role_id: data.role_id,
+        name: data.name,
+        email: data.email,
+        password_hash: data.password_hash,
+        status: 'ACTIVE',
+      },
+      select: {
+        user_id: true,
+        name: true,
+        email: true,
+        status: true,
+        created_at: true,
+        role: { select: { role_id: true, name: true } },
+        hospital: { select: { name: true } },
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: user.user_id }, tx);
+
+    return user;
   });
 }
 
@@ -284,63 +312,73 @@ export async function createUser(data: {
 export async function updateUser(
   userId: string,
   data: { name?: string; email?: string; role_id?: number },
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  return prisma.user.update({
-    where: { user_id: userId },
-    data,
-    select: {
-      user_id: true,
-      name: true,
-      email: true,
-      status: true,
-      created_at: true,
-      role: { select: { role_id: true, name: true } },
-    },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { user_id: userId },
+      data,
+      select: {
+        user_id: true,
+        name: true,
+        email: true,
+        status: true,
+        created_at: true,
+        role: { select: { role_id: true, name: true } },
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: userId }, tx);
+
+    return updated;
   });
 }
 
 /**
  * Update user status (ACTIVE/INACTIVE).
  */
-export async function updateUserStatus(userId: string, status: string) {
-  return prisma.user.update({
-    where: { user_id: userId },
-    data: { status: status as 'ACTIVE' | 'INACTIVE' },
-    select: {
-      user_id: true,
-      name: true,
-      email: true,
-      status: true,
-      role: { select: { role_id: true, name: true } },
-    },
+export async function updateUserStatus(
+  userId: string,
+  status: string,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { user_id: userId },
+      data: { status: status as 'ACTIVE' | 'INACTIVE' },
+      select: {
+        user_id: true,
+        name: true,
+        email: true,
+        status: true,
+        role: { select: { role_id: true, name: true } },
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: userId }, tx);
+
+    return updated;
   });
 }
 
 /**
  * Reset user's password.
  */
-export async function updateUserPassword(userId: string, passwordHash: string) {
-  return prisma.user.update({
-    where: { user_id: userId },
-    data: { password_hash: passwordHash },
-    select: { user_id: true },
-  });
-}
-
-// ── Audit Log ────────────────────────────────────────────────────────────────
-
-export async function createAuditLog(
+export async function updateUserPassword(
   userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
+  passwordHash: string,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { user_id: userId },
+      data: { password_hash: passwordHash },
+      select: { user_id: true },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: userId }, tx);
+
+    return updated;
   });
 }
+

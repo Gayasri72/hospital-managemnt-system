@@ -8,6 +8,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from '../../config/database';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,25 +57,6 @@ export async function getUserDoctorId(
   return doctor?.doctor_id ?? null;
 }
 
-/**
- * Write an entry to the audit log.
- */
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}
-
 // ── CRUD Operations ──────────────────────────────────────────────────────────
 
 /**
@@ -82,7 +64,8 @@ export async function createAuditLog(
  */
 export async function createMedicalRecord(
   data: CreateMedicalRecordData,
-  prescriptions: PrescriptionData[]
+  prescriptions: PrescriptionData[],
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     // 1. Create the base record
@@ -124,6 +107,8 @@ export async function createMedicalRecord(
       });
     }
 
+    await writeAuditLog({ ...audit, entity_id: record.record_id }, tx);
+
     return { ...record, prescriptions: createdPrescriptions };
   });
 }
@@ -135,7 +120,8 @@ export async function updateMedicalRecord(
   recordId: string,
   hospitalId: string,
   data: UpdateMedicalRecordData,
-  prescriptions?: PrescriptionData[]
+  prescriptions: PrescriptionData[] | undefined,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
   return prisma.$transaction(async (tx) => {
     // Update record fields
@@ -176,6 +162,8 @@ export async function updateMedicalRecord(
         });
       }
     }
+
+    await writeAuditLog({ ...audit, entity_id: recordId }, tx);
 
     // Fetch the updated full record
     return tx.medicalRecord.findUniqueOrThrow({
@@ -295,15 +283,21 @@ export async function getPatientPrescriptions(
     limit: number;
     from?: Date;
     to?: Date;
+    doctor_id?: string;
   }
 ) {
-  const { page, limit, from, to } = options;
+  const { page, limit, from, to, doctor_id } = options;
   const skip = (page - 1) * limit;
 
   const where: Record<string, any> = {
     patient_id: patientId,
     hospital_id: hospitalId,
   };
+
+  if (doctor_id) {
+    // Prescriptions don't have doctor_id directly; filter via the medical record.
+    where.medical_record = { doctor_id };
+  }
 
   if (from || to) {
     where.created_at = {};

@@ -880,6 +880,95 @@ Then try: `GET /admin/roles` with the Receptionist's token
 
 ---
 
+### 5.2b POST /doctors — ✅ Create doctor with login account
+
+**Body**:
+```json
+{
+  "name": "Dr. Amara Perera",
+  "specialization": "Dermatologist",
+  "contact_number": "0112223344",
+  "email": "dr.amara@hospital.com",
+  "qualifications": "MBBS, MD (Dermatology)",
+  "experience": "8 years",
+  "consultation_fee": 1800.00,
+  "create_login": true,
+  "login_email": "amara@hospital.com",
+  "login_password": "Amara@123"
+}
+```
+
+**Expected**: `201 Created` — doctor + profile + fee + linked user account
+```json
+{
+  "success": true,
+  "data": {
+    "doctor_id": "...",
+    "name": "Dr. Amara Perera",
+    "has_login": true,
+    "profile": { ... },
+    "currentFee": { ... }
+  }
+}
+```
+
+---
+
+### 5.2c POST /auth/login — ✅ Login as Doctor
+
+| | |
+|---|---|
+| **Method** | POST |
+| **URL** | `{{baseUrl}}/auth/login` |
+| **Auth** | None |
+
+**Body**:
+```json
+{
+  "email": "amara@hospital.com",
+  "password": "Amara@123"
+}
+```
+
+**Expected**: `200 OK` — login response includes `doctor_id`
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "eyJhbGciOi...",
+    "user": {
+      "user_id": "...",
+      "name": "Dr. Amara Perera",
+      "email": "amara@hospital.com",
+      "role": "Doctor",
+      "hospital_id": "...",
+      "doctor_id": "..."
+    }
+  }
+}
+```
+
+**⚠️ NOTE**: The JWT token also contains `doctorId` — the frontend uses this to identify which doctor record is linked to the logged-in user. The `/auth/me` endpoint will also return the linked `doctor` object.
+
+---
+
+### 5.2d POST /doctors — ❌ Create doctor with login but missing credentials
+
+**Body**:
+```json
+{
+  "name": "Dr. Bad Login",
+  "specialization": "Surgeon",
+  "consultation_fee": 2000.00,
+  "create_login": true
+}
+```
+
+**Expected**: `422 Validation failed` — "login_email and login_password are required when create_login is true"
+
+---
+
 ### 5.3 POST /doctors — ❌ Missing specialization
 
 **Body**:

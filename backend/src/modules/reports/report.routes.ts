@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import * as reportController from './report.controller';
 import { authenticate, authorize } from '../../middleware/auth';
+import { ROLES } from '../../constants/roles';
 
 const router = Router();
 
@@ -12,37 +13,37 @@ router.use(authenticate);
 
 router.get(
   '/appointments/daily',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getDailyAppointments
 );
 
 router.get(
   '/appointments/monthly',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getMonthlyAppointments
 );
 
 router.get(
   '/appointments/doctor-wise',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getDoctorWiseAppointments
 );
 
 router.get(
   '/appointments/cancelled',
-  authorize('Receptionist', 'Hospital Admin', 'Super Admin'),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getCancelledAppointments
 );
 
 router.get(
   '/patients/summary',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getPatientSummary
 );
 
 router.get(
   '/doctors/performance',
-  authorize('Hospital Admin', 'Super Admin'),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   reportController.getDoctorPerformance
 );
 

@@ -9,46 +9,58 @@
 // - All money stored as DECIMAL(10,2)
 // ──────────────────────────────────────────────────────────────────────────────
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
-import type { Prisma } from '@prisma/client';
+import { writeAuditLog, type AuditEntry } from '../../utils/audit';
+
+type Money = Prisma.Decimal | number | string;
 
 // ── Create Payment ───────────────────────────────────────────────────────────
 
-export async function createPayment(data: {
-  appointment_id: string;
-  hospital_id: string;
-  total_amount: number;
-  doctor_amount: number;
-  hospital_amount: number;
-}) {
-  return prisma.payment.create({
-    data: {
-      appointment_id: data.appointment_id,
-      hospital_id: data.hospital_id,
-      total_amount: data.total_amount,
-      doctor_amount: data.doctor_amount,
-      hospital_amount: data.hospital_amount,
-      amount_paid: 0,
-      status: 'pending',
-    },
-    include: {
-      appointment: {
-        select: {
-          appointment_id: true,
-          queue_number: true,
-          patient: { select: { name: true, nic: true, phone: true } },
-          doctor: { select: { name: true, specialization: true } },
-          session: {
-            select: {
-              session_date: true,
-              start_time: true,
-              branch: { select: { name: true } },
+export async function createPayment(
+  data: {
+    appointment_id: string;
+    hospital_id: string;
+    total_amount: Money;
+    doctor_amount: Money;
+    hospital_amount: Money;
+  },
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.create({
+      data: {
+        appointment_id: data.appointment_id,
+        hospital_id: data.hospital_id,
+        total_amount: data.total_amount,
+        doctor_amount: data.doctor_amount,
+        hospital_amount: data.hospital_amount,
+        amount_paid: 0,
+        status: 'pending',
+      },
+      include: {
+        appointment: {
+          select: {
+            appointment_id: true,
+            queue_number: true,
+            patient: { select: { name: true, nic: true, phone: true } },
+            doctor: { select: { name: true, specialization: true } },
+            session: {
+              select: {
+                session_date: true,
+                start_time: true,
+                branch: { select: { name: true } },
+              },
             },
+            slot: { select: { slot_time: true } },
           },
-          slot: { select: { slot_time: true } },
         },
       },
-    },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: payment.payment_id }, tx);
+
+    return payment;
   });
 }
 
@@ -63,20 +75,23 @@ export async function addTransaction(
   hospitalId: string,
   data: {
     method: string;
-    amount: number;
+    amount: Money;
     reference?: string;
     note?: string;
     processed_by: string;
   },
-  currentAmountPaid: number,
-  totalAmount: number,
+  currentAmountPaid: Money,
+  totalAmount: Money,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  const newAmountPaid = currentAmountPaid + data.amount;
+  const inputAmount = new Prisma.Decimal(data.amount);
+  const newAmountPaid = new Prisma.Decimal(currentAmountPaid).plus(inputAmount);
+  const total = new Prisma.Decimal(totalAmount);
 
   let newStatus: string;
-  if (newAmountPaid >= totalAmount) {
+  if (newAmountPaid.greaterThanOrEqualTo(total)) {
     newStatus = 'paid';
-  } else if (newAmountPaid > 0) {
+  } else if (newAmountPaid.greaterThan(0)) {
     newStatus = 'partial';
   } else {
     newStatus = 'pending';
@@ -96,7 +111,7 @@ export async function addTransaction(
       },
     });
 
-    return tx.payment.update({
+    const updated = await tx.payment.update({
       where: { payment_id: paymentId },
       data: {
         amount_paid: newAmountPaid,
@@ -122,6 +137,10 @@ export async function addTransaction(
         },
       },
     });
+
+    await writeAuditLog({ ...audit, entity_id: paymentId }, tx);
+
+    return updated;
   });
 }
 
@@ -136,16 +155,17 @@ export async function addRefund(
   hospitalId: string,
   data: {
     method: string;
-    amount: number;
+    amount: Money;
     reason: string;
     reference?: string;
     processed_by: string;
   },
-  currentAmountPaid: number,
+  currentAmountPaid: Money,
+  audit: Omit<AuditEntry, 'entity_id'>,
 ) {
-  const newAmountPaid = currentAmountPaid - data.amount;
-
-  const newStatus = newAmountPaid <= 0 ? 'refunded' : 'partial';
+  const inputAmount = new Prisma.Decimal(data.amount);
+  const newAmountPaid = new Prisma.Decimal(currentAmountPaid).minus(inputAmount);
+  const newStatus = newAmountPaid.lessThanOrEqualTo(0) ? 'refunded' : 'partial';
 
   return prisma.$transaction(async (tx) => {
     await tx.paymentTransaction.create({
@@ -161,10 +181,10 @@ export async function addRefund(
       },
     });
 
-    return tx.payment.update({
+    const updated = await tx.payment.update({
       where: { payment_id: paymentId },
       data: {
-        amount_paid: Math.max(newAmountPaid, 0),
+        amount_paid: Prisma.Decimal.max(newAmountPaid, 0),
         status: newStatus,
       },
       include: {
@@ -187,6 +207,10 @@ export async function addRefund(
         },
       },
     });
+
+    await writeAuditLog({ ...audit, entity_id: paymentId }, tx);
+
+    return updated;
   });
 }
 
@@ -746,20 +770,3 @@ export async function findDoctorInHospital(doctorId: string, hospitalId: string)
   });
 }
 
-// ── Audit Log ────────────────────────────────────────────────────────────────
-
-export async function createAuditLog(
-  userId: string,
-  action: string,
-  entity: string,
-  entityId?: string,
-) {
-  return prisma.auditLog.create({
-    data: {
-      user_id: userId,
-      action,
-      entity,
-      entity_id: entityId ?? null,
-    },
-  });
-}
