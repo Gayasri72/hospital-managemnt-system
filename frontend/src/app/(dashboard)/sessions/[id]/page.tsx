@@ -33,7 +33,17 @@ export default function SessionDetailPage() {
       
       if (sessionRes.success) setSession(sessionRes.data);
       if (slotsRes.success) setSlots(slotsRes.data);
-      if (queueRes.success) setQueue(queueRes.data);
+      if (queueRes.success) {
+        // The backend returns { waiting: [], in_clinic: [], done: [] }
+        // We flatten it back into a single array for the UI and sort by queue number
+        const qData = queueRes.data || {};
+        const flatQueue = [
+          ...(qData.waiting || []),
+          ...(qData.in_clinic || []),
+          ...(qData.done || [])
+        ].sort((a, b) => (a.queue_number || 0) - (b.queue_number || 0));
+        setQueue(flatQueue);
+      }
     } catch (error) {
       console.error("Failed to fetch session details", error);
     } finally {

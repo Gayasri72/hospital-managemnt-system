@@ -22,7 +22,7 @@ const patientSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal('')),
   address: z.string().optional().or(z.literal('')),
   emergency_contact: z.string().optional().or(z.literal('')),
-  gender: z.enum(['Male', 'Female', 'Other']).optional(),
+  gender: z.enum(['Male', 'Female', 'Other']).optional().or(z.literal('')),
   age: z.coerce.number().min(0, "Age must be positive").optional().or(z.literal('')),
 });
 
@@ -44,6 +44,8 @@ export default function EditPatientPage() {
       email: '',
       address: '',
       emergency_contact: '',
+      age: '' as any,
+      gender: '' as any,
     },
   });
 
@@ -60,7 +62,7 @@ export default function EditPatientPage() {
             email: patient.email || '',
             address: patient.profile?.address || '',
             emergency_contact: patient.profile?.emergency_contact || '',
-            gender: patient.profile?.gender as any,
+            gender: patient.profile?.gender as any || '',
             age: patient.profile?.age || ('' as any),
           });
         }
@@ -82,6 +84,7 @@ export default function EditPatientPage() {
       if (!payload.address) delete payload.address;
       if (!payload.emergency_contact) delete payload.emergency_contact;
       if (payload.age === '') delete payload.age;
+      if (payload.gender === '') delete payload.gender;
 
       const response = await patientsApi.updatePatient(id, payload as any);
       if (response.success) {
@@ -173,7 +176,7 @@ export default function EditPatientPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gender</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select gender" />

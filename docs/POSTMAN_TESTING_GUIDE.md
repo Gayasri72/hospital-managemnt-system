@@ -2178,6 +2178,64 @@ Create payment for a "booked" appointment:
 
 ---
 
+## MODULE 13 — Branches
+
+> **Login as**: Any authenticated user
+
+### 13.1 GET /branches — ✅ List all branches
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/branches` |
+| **Auth** | Bearer `{{token}}` |
+
+**Expected**: `200 OK`
+```json
+{
+  "success": true,
+  "message": "Branches fetched successfully",
+  "data": [
+    {
+      "branch_id": "00000000-0000-0000-0000-000000000002",
+      "hospital_id": "00000000-0000-0000-0000-000000000001",
+      "name": "Main City Branch",
+      "location": "Downtown",
+      "is_active": true,
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ]
+}
+```
+
+---
+
+### 13.2 GET /branches/:id — ✅ Get branch by ID
+
+| | |
+|---|---|
+| **URL** | `{{baseUrl}}/branches/{{branch_id}}` |
+| **Auth** | Bearer `{{token}}` |
+
+**Expected**: `200 OK`
+```json
+{
+  "success": true,
+  "message": "Branch fetched successfully",
+  "data": {
+    "branch_id": "00000000-0000-0000-0000-000000000002",
+    "hospital_id": "00000000-0000-0000-0000-000000000001",
+    "name": "Main City Branch",
+    "location": "Downtown",
+    "is_active": true,
+    "created_at": "...",
+    "updated_at": "..."
+  }
+}
+```
+
+---
+
 ## Postman Environment Variables
 
 Set these up to make testing easier:
