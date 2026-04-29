@@ -4,8 +4,6 @@
 
 import * as dashboardRepo from './dashboard.repository';
 import { prisma } from '../../config/database';
-import { AppError } from '../../utils/apiError';
-import { StatusCodes } from 'http-status-codes';
 import { ROLES } from '../../constants/roles';
 
 export async function getDashboardData(user: { user_id: string; role: string; hospital_id: string }) {
