@@ -34,7 +34,7 @@ export const sessionsApi = {
   },
 
   getSessionQueue: async (id: string) => {
-    const { data } = await apiClient.get<ApiResponse<any[]>>(`/sessions/${id}/queue`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/sessions/${id}/queue`);
     return data;
   },
 
