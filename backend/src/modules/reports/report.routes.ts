@@ -13,37 +13,37 @@ router.use(authenticate);
 
 router.get(
   '/appointments/daily',
-  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getDailyAppointments
 );
 
 router.get(
   '/appointments/monthly',
-  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getMonthlyAppointments
 );
 
 router.get(
   '/appointments/doctor-wise',
-  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getDoctorWiseAppointments
 );
 
 router.get(
   '/appointments/cancelled',
-  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.RECEPTIONIST, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getCancelledAppointments
 );
 
 router.get(
   '/patients/summary',
-  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getPatientSummary
 );
 
 router.get(
   '/doctors/performance',
-  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   reportController.getDoctorPerformance
 );
 

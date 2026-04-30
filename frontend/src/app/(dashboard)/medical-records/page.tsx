@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Search, FileText, User, Stethoscope, Calendar } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useDebounce } from '@/hooks/use-debounce';
+import { hasPermission } from '@/lib/permissions';
 
 export default function MedicalRecordsPage() {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -18,6 +19,10 @@ export default function MedicalRecordsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
   const { user } = useAuthStore();
+
+  if (!hasPermission(user?.role, 'medicalRecords')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view medical records.</div>;
+  }
 
   useEffect(() => {
     const fetchRecords = async () => {

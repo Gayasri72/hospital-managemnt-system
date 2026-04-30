@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Plus, Calendar, Clock, Building } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -19,6 +20,10 @@ export default function SessionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState('');
   const { user } = useAuthStore();
+  
+  if (!hasPermission(user?.role, 'sessions')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view sessions.</div>;
+  }
   
   const canCreate = ['Super Admin', 'Hospital Admin', 'Receptionist'].includes(user?.role || '');
 

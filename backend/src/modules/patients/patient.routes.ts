@@ -39,7 +39,7 @@ router.post(
 // GET /api/v1/patients — list with search + pagination
 router.get(
   '/',
-  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   validate({ query: listPatientsQuerySchema }),
   patientController.listPatients,
 );

@@ -41,6 +41,7 @@ doctorRouter.post(
 // GET /api/v1/doctors
 doctorRouter.get(
   '/',
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   validate({ query: listDoctorsQuerySchema }),
   ctrl.listDoctors,
 );
@@ -48,6 +49,7 @@ doctorRouter.get(
 // GET /api/v1/doctors/:id
 doctorRouter.get(
   '/:id',
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   validate({ params: doctorIdParamSchema }),
   ctrl.getDoctorById,
 );

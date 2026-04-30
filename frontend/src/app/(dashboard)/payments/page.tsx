@@ -12,13 +12,20 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, DollarSign, Calendar, FileText } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
-
+import { hasPermission } from '@/lib/permissions';
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const { user } = useAuthStore();
   
+  if (!hasPermission(user?.role, 'payments')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view payments.</div>;
+  }
+  
+  const canCreate = ['Super Admin', 'Hospital Admin', 'Receptionist', 'Accountant'].includes(user?.role || '');
+
   useEffect(() => {
     const fetchPayments = async () => {
       setIsLoading(true);

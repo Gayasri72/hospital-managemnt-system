@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { authApi } from '@/lib/api/auth';
 import { useRouter } from 'next/navigation';
+import { ROLE_ACCESS } from '@/lib/permissions';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -46,18 +47,18 @@ export function Sidebar() {
 
   const getNavItems = () => {
     const items = [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['Super Admin', 'Hospital Admin', 'Receptionist', 'Doctor', 'Accountant'] },
-      { name: 'Patients', href: '/patients', icon: Users, roles: ['Super Admin', 'Hospital Admin', 'Receptionist', 'Doctor'] },
-      { name: 'Doctors', href: '/doctors', icon: Stethoscope, roles: ['Super Admin', 'Hospital Admin', 'Receptionist', 'Accountant'] },
-      { name: 'Sessions', href: '/sessions', icon: Clock, roles: ['Super Admin', 'Hospital Admin', 'Receptionist'] },
-      { name: 'Appointments', href: '/appointments', icon: CalendarDays, roles: ['Super Admin', 'Hospital Admin', 'Receptionist', 'Doctor', 'Accountant'] },
-      { name: 'Payments', href: '/payments', icon: CreditCard, roles: ['Super Admin', 'Hospital Admin', 'Accountant', 'Receptionist'] },
-      { name: 'Medical Records', href: '/medical-records', icon: FileText, roles: ['Super Admin', 'Hospital Admin', 'Doctor'] },
-      { name: 'Reports', href: '/reports/revenue', icon: BarChart3, roles: ['Super Admin', 'Hospital Admin', 'Accountant', 'Receptionist'] },
-      { name: 'Admin', href: '/admin/users', icon: ShieldCheck, roles: ['Super Admin', 'Hospital Admin'] },
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ROLE_ACCESS.dashboard },
+      { name: 'Patients', href: '/patients', icon: Users, roles: ROLE_ACCESS.patients },
+      { name: 'Doctors', href: '/doctors', icon: Stethoscope, roles: ROLE_ACCESS.doctors },
+      { name: 'Sessions', href: '/sessions', icon: Clock, roles: ROLE_ACCESS.sessions },
+      { name: 'Appointments', href: '/appointments', icon: CalendarDays, roles: ROLE_ACCESS.appointments },
+      { name: 'Payments', href: '/payments', icon: CreditCard, roles: ROLE_ACCESS.payments },
+      { name: 'Medical Records', href: '/medical-records', icon: FileText, roles: ROLE_ACCESS.medicalRecords },
+      { name: 'Reports', href: '/reports/revenue', icon: BarChart3, roles: ROLE_ACCESS.reports },
+      { name: 'Admin', href: '/admin/users', icon: ShieldCheck, roles: ROLE_ACCESS.admin },
     ];
 
-    return items.filter(item => item.roles.includes(role));
+    return items.filter(item => (item.roles as readonly string[]).includes(role));
   };
 
   const navItems = getNavItems();

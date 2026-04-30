@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Plus, UserCircle, Shield, Edit2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 
 export default function UsersManagementPage() {
@@ -20,6 +21,10 @@ export default function UsersManagementPage() {
   const [search, setSearch] = useState('');
   
   const { user: currentUser } = useAuthStore();
+
+  if (!hasPermission(currentUser?.role, 'admin')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view administration pages.</div>;
+  }
   const isSuperAdmin = currentUser?.role === 'Super Admin';
 
   useEffect(() => {

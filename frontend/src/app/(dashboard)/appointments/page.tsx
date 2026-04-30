@@ -12,13 +12,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Plus, Calendar, Clock, User, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
-
+import { hasPermission } from '@/lib/permissions';
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const { user } = useAuthStore();
+  
+  if (!hasPermission(user?.role, 'appointments')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view appointments.</div>;
+  }
   
   const canCreate = ['Super Admin', 'Hospital Admin', 'Receptionist'].includes(user?.role || '');
 

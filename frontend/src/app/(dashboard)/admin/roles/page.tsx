@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Shield, Settings, Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 
 export default function RolesManagementPage() {
@@ -16,6 +17,10 @@ export default function RolesManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const { user: currentUser } = useAuthStore();
+  
+  if (!hasPermission(currentUser?.role, 'admin')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view administration pages.</div>;
+  }
   const isSuperAdmin = currentUser?.role === 'Super Admin';
 
   useEffect(() => {

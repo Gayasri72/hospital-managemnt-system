@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, PieChart, Users, TrendingUp, DollarSign, CalendarDays, Activity } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 
 export default function ReportsIndexPage() {
   const { user } = useAuthStore();
   
-  const canViewFinancials = ['Super Admin', 'Hospital Admin'].includes(user?.role || '');
+  const canViewFinancials = hasPermission(user?.role, 'reports');
 
   return (
     <div className="space-y-6">

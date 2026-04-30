@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Search, Plus, UserCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
+import { hasPermission } from '@/lib/permissions';
 
 export default function PatientsPage() {
   const router = useRouter();
@@ -18,6 +19,10 @@ export default function PatientsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const { user } = useAuthStore();
+  
+  if (!hasPermission(user?.role, 'patients')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view patients.</div>;
+  }
   
   const canCreate = ['Super Admin', 'Hospital Admin', 'Receptionist'].includes(user?.role || '');
 

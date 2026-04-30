@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { ArrowLeft, Download, DollarSign, TrendingUp, Calendar as CalendarIcon, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 
 export default function RevenueReportPage() {
   const [reportData, setReportData] = useState<RevenueReportData | null>(null);
@@ -20,7 +21,7 @@ export default function RevenueReportPage() {
   });
 
   const { user } = useAuthStore();
-  const canViewFinancials = ['Super Admin', 'Hospital Admin'].includes(user?.role || '');
+  const canViewFinancials = hasPermission(user?.role, 'reports');
 
   const fetchReport = async () => {
     setIsLoading(true);

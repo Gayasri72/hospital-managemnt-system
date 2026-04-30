@@ -43,6 +43,7 @@ appointmentRouter.post(
 // GET /api/v1/appointments
 appointmentRouter.get(
   '/',
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   validate({ query: listAppointmentsQuerySchema }),
   ctrl.listAppointments,
 );
@@ -50,6 +51,7 @@ appointmentRouter.get(
 // GET /api/v1/appointments/:id
 appointmentRouter.get(
   '/:id',
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN, ROLES.ACCOUNTANT),
   validate({ params: appointmentIdParamSchema }),
   ctrl.getAppointmentById,
 );
@@ -57,6 +59,7 @@ appointmentRouter.get(
 // PATCH /api/v1/appointments/:id/status
 appointmentRouter.patch(
   '/:id/status',
+  authorize(ROLES.RECEPTIONIST, ROLES.DOCTOR, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
   validate({ params: appointmentIdParamSchema, body: updateStatusSchema }),
   ctrl.updateAppointmentStatus,
 );

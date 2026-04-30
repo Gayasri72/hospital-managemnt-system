@@ -11,12 +11,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Stethoscope } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { hasPermission } from '@/lib/permissions';
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const { user } = useAuthStore();
+  
+  if (!hasPermission(user?.role, 'doctors')) {
+    return <div className="p-8 text-center text-red-500">Access Denied. You do not have permission to view doctors.</div>;
+  }
   
   const canCreate = ['Super Admin', 'Hospital Admin'].includes(user?.role || '');
 
