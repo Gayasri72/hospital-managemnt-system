@@ -112,7 +112,7 @@ export default function RevenueReportPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-green-100 font-medium mb-1">Total Revenue</p>
-                    <h3 className="text-3xl font-bold">{reportData.total_revenue.toLocaleString()} LKR</h3>
+                    <h3 className="text-3xl font-bold">{(reportData.total_revenue || 0).toLocaleString()} LKR</h3>
                   </div>
                   <div className="p-3 bg-white/20 rounded-lg">
                     <DollarSign className="w-6 h-6 text-white" />
@@ -132,8 +132,8 @@ export default function RevenueReportPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-500">Doctor Consultation Fees</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{reportData.total_consultation_fees.toLocaleString()} LKR</h3>
-                  <p className="text-xs text-slate-400 mt-1">{Math.round((reportData.total_consultation_fees / reportData.total_revenue) * 100)}% of total</p>
+                  <h3 className="text-2xl font-bold text-slate-900">{(reportData.total_consultation_fees || 0).toLocaleString()} LKR</h3>
+                  <p className="text-xs text-slate-400 mt-1">{reportData.total_revenue ? Math.round(((reportData.total_consultation_fees || 0) / reportData.total_revenue) * 100) : 0}% of total</p>
                 </div>
               </CardContent>
             </Card>
@@ -145,8 +145,8 @@ export default function RevenueReportPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-500">Hospital Charges</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{reportData.total_hospital_charges.toLocaleString()} LKR</h3>
-                  <p className="text-xs text-slate-400 mt-1">{Math.round((reportData.total_hospital_charges / reportData.total_revenue) * 100)}% of total</p>
+                  <h3 className="text-2xl font-bold text-slate-900">{(reportData.total_hospital_charges || 0).toLocaleString()} LKR</h3>
+                  <p className="text-xs text-slate-400 mt-1">{reportData.total_revenue ? Math.round(((reportData.total_hospital_charges || 0) / reportData.total_revenue) * 100) : 0}% of total</p>
                 </div>
               </CardContent>
             </Card>
@@ -165,7 +165,7 @@ export default function RevenueReportPage() {
             <CardContent>
               <div className="h-[350px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reportData.revenue_by_date} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={reportData.revenue_by_date || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
                       dataKey="date" 
@@ -200,7 +200,7 @@ export default function RevenueReportPage() {
             <CardContent>
               <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reportData.revenue_by_department} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 0 }}>
+                  <BarChart data={reportData.revenue_by_department || []} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                     <XAxis 
                       type="number"

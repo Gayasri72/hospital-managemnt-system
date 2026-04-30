@@ -56,11 +56,14 @@ export default function AppointmentReportPage() {
 
   const getStatusData = () => {
     if (!reportData) return [];
-    const pending = reportData.total_appointments - reportData.completed_appointments - reportData.cancelled_appointments;
+    const total = reportData.total_appointments || 0;
+    const completed = reportData.completed_appointments || 0;
+    const cancelled = reportData.cancelled_appointments || 0;
+    const pending = total - completed - cancelled;
     return [
-      { name: 'Completed', value: reportData.completed_appointments, color: '#10b981' },
-      { name: 'Pending/Upcoming', value: pending, color: '#3b82f6' },
-      { name: 'Cancelled', value: reportData.cancelled_appointments, color: '#f43f5e' },
+      { name: 'Completed', value: completed, color: '#10b981' },
+      { name: 'Pending/Upcoming', value: pending > 0 ? pending : 0, color: '#3b82f6' },
+      { name: 'Cancelled', value: cancelled, color: '#f43f5e' },
     ];
   };
 
@@ -110,7 +113,7 @@ export default function AppointmentReportPage() {
                 <p className="text-sm font-medium text-slate-500 mb-1 flex items-center">
                   <CalendarIcon className="w-4 h-4 mr-2 text-slate-400" /> Total Bookings
                 </p>
-                <h3 className="text-3xl font-bold text-slate-900">{reportData.total_appointments.toLocaleString()}</h3>
+                <h3 className="text-3xl font-bold text-slate-900">{(reportData.total_appointments || 0).toLocaleString()}</h3>
               </CardContent>
             </Card>
             
@@ -119,9 +122,9 @@ export default function AppointmentReportPage() {
                 <p className="text-sm font-medium text-slate-500 mb-1 flex items-center">
                   <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" /> Completed
                 </p>
-                <h3 className="text-3xl font-bold text-slate-900">{reportData.completed_appointments.toLocaleString()}</h3>
+                <h3 className="text-3xl font-bold text-slate-900">{(reportData.completed_appointments || 0).toLocaleString()}</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  {Math.round((reportData.completed_appointments / reportData.total_appointments) * 100)}% completion rate
+                  {reportData.total_appointments ? Math.round(((reportData.completed_appointments || 0) / reportData.total_appointments) * 100) : 0}% completion rate
                 </p>
               </CardContent>
             </Card>
@@ -131,9 +134,9 @@ export default function AppointmentReportPage() {
                 <p className="text-sm font-medium text-slate-500 mb-1 flex items-center">
                   <XCircle className="w-4 h-4 mr-2 text-red-500" /> Cancelled
                 </p>
-                <h3 className="text-3xl font-bold text-slate-900">{reportData.cancelled_appointments.toLocaleString()}</h3>
+                <h3 className="text-3xl font-bold text-slate-900">{(reportData.cancelled_appointments || 0).toLocaleString()}</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  {Math.round((reportData.cancelled_appointments / reportData.total_appointments) * 100)}% cancellation rate
+                  {reportData.total_appointments ? Math.round(((reportData.cancelled_appointments || 0) / reportData.total_appointments) * 100) : 0}% cancellation rate
                 </p>
               </CardContent>
             </Card>
@@ -144,7 +147,7 @@ export default function AppointmentReportPage() {
                   <Clock className="w-4 h-4 mr-2 text-blue-500" /> Avg. Per Day
                 </p>
                 <h3 className="text-3xl font-bold text-slate-900">
-                  {Math.round(reportData.total_appointments / (reportData.appointments_by_date.length || 1))}
+                  {Math.round((reportData.total_appointments || 0) / ((reportData.appointments_by_date || []).length || 1))}
                 </h3>
               </CardContent>
             </Card>
@@ -164,7 +167,7 @@ export default function AppointmentReportPage() {
               <CardContent>
                 <div className="h-[300px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={reportData.appointments_by_date} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <AreaChart data={reportData.appointments_by_date || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
