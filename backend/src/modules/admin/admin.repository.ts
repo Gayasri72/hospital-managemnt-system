@@ -278,6 +278,7 @@ export async function createUser(
     password_hash: string;
   },
   audit: Omit<AuditEntry, 'entity_id'>,
+  roleName?: string,
 ) {
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -300,6 +301,27 @@ export async function createUser(
       },
     });
 
+    if (roleName === 'Doctor') {
+      const doc = await tx.doctor.create({
+        data: {
+          hospital_id: data.hospital_id,
+          user_id: user.user_id,
+          name: data.name,
+          specialization: 'General Practitioner',
+          status: 'active',
+        },
+      });
+
+      await tx.doctorFee.create({
+        data: {
+          doctor_id: doc.doctor_id,
+          hospital_id: data.hospital_id,
+          consultation_fee: 0,
+          effective_from: new Date(),
+        },
+      });
+    }
+
     await writeAuditLog({ ...audit, entity_id: user.user_id }, tx);
 
     return user;
@@ -313,6 +335,8 @@ export async function updateUser(
   userId: string,
   data: { name?: string; email?: string; role_id?: number },
   audit: Omit<AuditEntry, 'entity_id'>,
+  newRoleName?: string,
+  hospitalId?: string,
 ) {
   return prisma.$transaction(async (tx) => {
     const updated = await tx.user.update({
@@ -327,6 +351,33 @@ export async function updateUser(
         role: { select: { role_id: true, name: true } },
       },
     });
+
+    if (newRoleName === 'Doctor' && hospitalId) {
+      const existingDoc = await tx.doctor.findUnique({
+        where: { user_id: userId },
+      });
+      
+      if (!existingDoc) {
+        const doc = await tx.doctor.create({
+          data: {
+            hospital_id: hospitalId,
+            user_id: userId,
+            name: updated.name,
+            specialization: 'General Practitioner',
+            status: 'active',
+          },
+        });
+
+        await tx.doctorFee.create({
+          data: {
+            doctor_id: doc.doctor_id,
+            hospital_id: hospitalId,
+            consultation_fee: 0,
+            effective_from: new Date(),
+          },
+        });
+      }
+    }
 
     await writeAuditLog({ ...audit, entity_id: userId }, tx);
 

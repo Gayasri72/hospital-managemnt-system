@@ -253,6 +253,7 @@ export async function createUser(input: CreateUserInput, hospitalId: string, act
       password_hash: passwordHash,
     },
     { user_id: actorUserId, action: 'CREATE_USER', entity: 'users' },
+    role.name,
   );
 
   return user;
@@ -279,11 +280,13 @@ export async function updateUser(
   }
 
   // If changing role, verify it exists
+  let newRoleName: string | undefined;
   if (input.role_id) {
     const role = await adminRepo.getRoleById(input.role_id);
     if (!role) {
       throw new AppError('Role not found.', 404, 'ROLE_NOT_FOUND');
     }
+    newRoleName = role.name;
   }
 
   const updateData: Record<string, unknown> = {};
@@ -299,6 +302,8 @@ export async function updateUser(
       role_id?: number;
     },
     { user_id: actorUserId, action: 'UPDATE_USER', entity: 'users' },
+    newRoleName,
+    hospitalId,
   );
 
   return updated;
