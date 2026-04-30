@@ -19,6 +19,7 @@ export default function UsersManagementPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
   
   const { user: currentUser } = useAuthStore();
 
@@ -32,7 +33,7 @@ export default function UsersManagementPage() {
       setIsLoading(true);
       try {
         const [usersRes, rolesRes] = await Promise.all([
-          adminApi.getUsers({ search }),
+          adminApi.getUsers({ search, role_id: roleFilter !== 'all' ? roleFilter : undefined }),
           adminApi.getRoles().catch(() => ({ success: true, data: [] }))
         ]);
         
@@ -52,7 +53,7 @@ export default function UsersManagementPage() {
       const timer = setTimeout(fetchData, 300);
       return () => clearTimeout(timer);
     }
-  }, [search, isSuperAdmin]);
+  }, [search, roleFilter, isSuperAdmin]);
 
   if (!isSuperAdmin) {
     return <div className="p-8 text-center text-red-500 font-medium">Access Restricted to Super Administrators.</div>;
@@ -88,14 +89,14 @@ export default function UsersManagementPage() {
               />
             </div>
             <div className="w-full sm:w-1/4">
-              <Select>
+              <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v || 'all')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by Role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   {roles.map(r => (
-                    <SelectItem key={r.role_id} value={r.role_id}>{r.name}</SelectItem>
+                    <SelectItem key={r.role_id} value={String(r.role_id)}>{r.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
