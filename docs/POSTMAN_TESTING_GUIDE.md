@@ -1679,7 +1679,88 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.4 POST /payments/:id/transactions — ✅ Partial cash payment
+### 8.4 POST /payments/:id/recalculate — ✅ No change needed (totals already match)
+
+| | |
+|---|---|
+| **Method** | POST |
+| **URL** | `{{baseUrl}}/payments/{payment_id}/recalculate` |
+| **Auth** | Bearer `{{token}}` |
+| **Body** | None |
+
+Call this on the pending payment created in 8.1 (total_amount already matches appointment fees).
+
+**Expected**: `200 OK`
+```json
+{
+  "success": true,
+  "message": "Payment totals already match appointment fees — no change needed.",
+  "data": {
+    "payment_id": "...",
+    "status": "pending",
+    "total_amount": 2500.00,
+    "recalculated": false
+  }
+}
+```
+
+---
+
+### 8.4b POST /payments/:id/recalculate — ✅ Fixes a corrupted fee snapshot
+
+> **When to use**: If the appointment was created when doctor fees were not yet configured (so `appointment.total_fee` was stored as only the hospital charge), the payment's `total_amount` will be wrong. Call this before recording any transaction to correct it.
+
+**Scenario**: Appointment has `doctor_fee = 5000`, `hospital_charge = 2500`, but payment was created with `total_amount = 2500` (only hospital charge was snapshotted).
+
+| | |
+|---|---|
+| **Method** | POST |
+| **URL** | `{{baseUrl}}/payments/{payment_id}/recalculate` |
+| **Auth** | Bearer `{{token}}` |
+| **Body** | None |
+
+**Expected**: `200 OK`
+```json
+{
+  "success": true,
+  "message": "Payment totals recalculated from current appointment fees.",
+  "data": {
+    "payment_id": "...",
+    "status": "pending",
+    "total_amount": 7500.00,
+    "doctor_amount": 5000.00,
+    "hospital_amount": 2500.00,
+    "balance_remaining": "7500.00",
+    "recalculated": true
+  }
+}
+```
+
+After this succeeds, the transaction for Rs.7,500 will go through without `AMOUNT_EXCEEDS_BALANCE`.
+
+---
+
+### 8.4c POST /payments/:id/recalculate — ❌ Payment is not pending
+
+| | |
+|---|---|
+| **Method** | POST |
+| **URL** | `{{baseUrl}}/payments/{paid_payment_id}/recalculate` |
+
+Try this on a payment that is already `paid` or `partial` (from step 8.5 below).
+
+**Expected**: `409`
+```json
+{
+  "success": false,
+  "message": "Only pending payments (no transactions recorded) can be recalculated.",
+  "code": "PAYMENT_NOT_PENDING"
+}
+```
+
+---
+
+### 8.5 POST /payments/:id/transactions — ✅ Partial cash payment
 
 | | |
 |---|---|
@@ -1711,7 +1792,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.5 POST /payments/:id/transactions — ✅ Card payment (remaining balance)
+### 8.6 POST /payments/:id/transactions — ✅ Card payment (remaining balance)
 
 **Body**:
 ```json
@@ -1740,7 +1821,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.6 POST /payments/:id/transactions — ❌ Already fully paid
+### 8.7 POST /payments/:id/transactions — ❌ Already fully paid
 
 **Body**:
 ```json
@@ -1754,7 +1835,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.7 POST /payments/:id/transactions — ❌ Overpayment
+### 8.8 POST /payments/:id/transactions — ❌ Overpayment
 
 *(Test this on a NEW pending payment)*
 
@@ -1770,7 +1851,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.8 POST /payments/:id/transactions — ❌ Invalid method
+### 8.9 POST /payments/:id/transactions — ❌ Invalid method
 
 **Body**:
 ```json
@@ -1784,7 +1865,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.9 POST /payments/:id/refund — ✅ Partial refund
+### 8.10 POST /payments/:id/refund — ✅ Partial refund
 
 | | |
 |---|---|
@@ -1817,7 +1898,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.10 POST /payments/:id/refund — ❌ Refund exceeds paid amount
+### 8.11 POST /payments/:id/refund — ❌ Refund exceeds paid amount
 
 **Body**:
 ```json
@@ -1832,7 +1913,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.11 POST /payments/:id/refund — ❌ Missing reason
+### 8.12 POST /payments/:id/refund — ❌ Missing reason
 
 **Body**:
 ```json
@@ -1846,7 +1927,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.12 GET /payments/:id — ✅ Get payment details
+### 8.13 GET /payments/:id — ✅ Get payment details
 
 | | |
 |---|---|
@@ -1856,7 +1937,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.13 GET /payments/appointment/:appointment_id — ✅ Look up payment by appointment
+### 8.14 GET /payments/appointment/:appointment_id — ✅ Look up payment by appointment
 
 | | |
 |---|---|
@@ -1866,7 +1947,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.14 GET /payments/appointment/:appointment_id — ❌ No payment exists
+### 8.15 GET /payments/appointment/:appointment_id — ❌ No payment exists
 
 | | |
 |---|---|
@@ -1876,7 +1957,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.15 GET /payments — ✅ List all payments
+### 8.16 GET /payments — ✅ List all payments
 
 | | |
 |---|---|
@@ -1887,7 +1968,7 @@ Create payment for a "booked" appointment:
 
 ---
 
-### 8.16 GET /payments?status=paid — ✅ Filter by status
+### 8.17 GET /payments?status=paid — ✅ Filter by status
 
 ---
 
@@ -2279,6 +2360,7 @@ Set these up to make testing easier:
 - [ ] Rescheduling
 - [ ] Queue board
 - [ ] Create payment (only for completed)
+- [ ] Recalculate payment totals (no-op + fix corrupted snapshot + reject non-pending)
 - [ ] Partial + full payment
 - [ ] Refund (partial)
 - [ ] Revenue reports (daily, monthly, doctor, summary)
