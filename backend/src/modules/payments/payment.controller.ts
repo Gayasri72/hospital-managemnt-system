@@ -119,6 +119,20 @@ export const getDoctorRevenue = asyncHandler(async (req: Request, res: Response)
   sendSuccess({ res, message: 'Doctor revenue report retrieved successfully', data: report });
 });
 
+/** POST /api/v1/payments/:id/recalculate */
+export const recalculatePayment = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const user = requireUser(req);
+  const paymentId = String(req.params['id']);
+
+  const payment = await paymentService.recalculatePayment(paymentId, user.hospitalId, user.userId);
+
+  const message = payment.recalculated
+    ? 'Payment totals recalculated from current appointment fees.'
+    : 'Payment totals already match appointment fees — no change needed.';
+
+  sendSuccess({ res, statusCode: 200, message, data: payment });
+});
+
 /** GET /api/v1/reports/revenue/summary */
 export const getRevenueSummary = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const user = requireUser(req);

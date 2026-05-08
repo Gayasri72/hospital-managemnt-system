@@ -770,3 +770,55 @@ export async function findDoctorInHospital(doctorId: string, hospitalId: string)
   });
 }
 
+// ── Recalculate Payment Totals ────────────────────────────────────────────────
+
+/**
+ * Update a pending payment's fee snapshot from the current appointment values.
+ * Only called when doctor_fee + hospital_charge doesn't match total_amount
+ * (corrupted snapshot). Safe because pending means no money has moved.
+ */
+export async function recalculatePaymentTotals(
+  paymentId: string,
+  hospitalId: string,
+  data: {
+    total_amount: Money;
+    doctor_amount: Money;
+    hospital_amount: Money;
+  },
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.payment.update({
+      where: { payment_id: paymentId, hospital_id: hospitalId },
+      data: {
+        total_amount: data.total_amount,
+        doctor_amount: data.doctor_amount,
+        hospital_amount: data.hospital_amount,
+      },
+      include: {
+        transactions: { orderBy: { created_at: 'asc' } },
+        appointment: {
+          select: {
+            appointment_id: true,
+            queue_number: true,
+            patient: { select: { name: true, nic: true, phone: true } },
+            doctor: { select: { name: true, specialization: true } },
+            session: {
+              select: {
+                session_date: true,
+                start_time: true,
+                branch: { select: { name: true, location: true } },
+              },
+            },
+            slot: { select: { slot_time: true } },
+          },
+        },
+      },
+    });
+
+    await writeAuditLog({ ...audit, entity_id: paymentId }, tx);
+
+    return updated;
+  });
+}
+

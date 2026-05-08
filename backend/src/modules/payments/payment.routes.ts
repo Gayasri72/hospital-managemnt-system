@@ -78,6 +78,14 @@ paymentRouter.post(
   ctrl.issueRefund,
 );
 
+// POST /api/v1/payments/:id/recalculate — fix corrupted fee snapshot on pending payments
+paymentRouter.post(
+  '/:id/recalculate',
+  authorize(ROLES.RECEPTIONIST, ROLES.ACCOUNTANT, ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  validate({ params: paymentIdParamSchema }),
+  ctrl.recalculatePayment,
+);
+
 // ── Reports Router (/api/v1/reports) ─────────────────────────────────────────
 
 export const reportsRouter = Router();

@@ -283,3 +283,67 @@ export async function getDoctorRevenue(
 export async function getRevenueSummary(hospitalId: string) {
   return paymentRepo.getSummary(hospitalId);
 }
+
+// ── Recalculate Payment Totals ────────────────────────────────────────────────
+
+export async function recalculatePayment(
+  paymentId: string,
+  hospitalId: string,
+  userId: string,
+) {
+  const payment = await paymentRepo.getPaymentById(paymentId, hospitalId);
+  if (!payment) {
+    throw new AppError('Payment not found.', 404, 'PAYMENT_NOT_FOUND');
+  }
+
+  if (payment.status !== 'pending') {
+    throw new AppError(
+      'Only pending payments (no transactions recorded) can be recalculated.',
+      409,
+      'PAYMENT_NOT_PENDING',
+    );
+  }
+
+  const appointment = await paymentRepo.findAppointmentInHospital(
+    payment.appointment_id,
+    hospitalId,
+  );
+  if (!appointment) {
+    throw new AppError('Appointment not found.', 404, 'APPOINTMENT_NOT_FOUND');
+  }
+
+  // Derive correct totals from the appointment's individual fee fields.
+  // We do NOT trust appointment.total_fee here — it may be the corrupted snapshot
+  // that caused this mismatch in the first place.
+  const doctorAmount = D(appointment.doctor_fee);
+  const hospitalAmount = D(appointment.hospital_charge);
+  const totalAmount = doctorAmount.plus(hospitalAmount);
+
+  const currentTotal = D(payment.total_amount);
+  if (totalAmount.equals(currentTotal)) {
+    return {
+      ...payment,
+      receipt_number: formatReceiptNumber(payment.payment_id),
+      balance_remaining: totalAmount.minus(D(payment.amount_paid)).toFixed(2),
+      recalculated: false,
+    };
+  }
+
+  const updated = await paymentRepo.recalculatePaymentTotals(
+    paymentId,
+    hospitalId,
+    {
+      total_amount: totalAmount,
+      doctor_amount: doctorAmount,
+      hospital_amount: hospitalAmount,
+    },
+    { user_id: userId, action: 'RECALCULATE_PAYMENT', entity: 'payments' },
+  );
+
+  return {
+    ...updated,
+    receipt_number: formatReceiptNumber(updated.payment_id),
+    balance_remaining: totalAmount.minus(D(updated.amount_paid)).toFixed(2),
+    recalculated: true,
+  };
+}
