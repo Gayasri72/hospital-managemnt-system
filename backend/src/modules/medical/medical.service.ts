@@ -267,10 +267,10 @@ export async function getPatientMedicalHistory(
     ...result,
     data: result.data.map((r: any) => ({
       record_id: r.record_id,
-      session_date: r.appointment.session.session_date,
+      session_date: r.appointment?.session?.session_date ?? null,
       doctor_name: r.doctor.name,
       specialization: r.doctor.specialization,
-      branch_name: r.appointment.session.branch.name,
+      branch_name: r.appointment?.session?.branch?.name ?? null,
       diagnosis_preview: r.diagnosis.length > 100 ? r.diagnosis.substring(0, 100) + '...' : r.diagnosis,
       prescription_count: r._count.prescriptions,
       follow_up_date: r.follow_up_date,
@@ -343,7 +343,7 @@ export async function getDoctorMedicalRecords(
     data: result.data.map((r: any) => ({
       record_id: r.record_id,
       patient_name: r.patient.name,
-      session_date: r.appointment.session.session_date,
+      session_date: r.appointment?.session?.session_date ?? null,
       diagnosis_preview: r.diagnosis.length > 100 ? r.diagnosis.substring(0, 100) + '...' : r.diagnosis,
       prescription_count: r._count.prescriptions,
       follow_up_date: r.follow_up_date,
@@ -420,9 +420,9 @@ function formatFullRecord(record: any) {
     appointment: {
       appointment_id: record.appointment.appointment_id,
       queue_display: record.appointment.queue_number,
-      session_date: record.appointment.session.session_date,
-      slot_time: record.appointment.slot?.slot_time,
-      branch_name: record.appointment.session.branch.name,
+      session_date: record.appointment?.session?.session_date ?? null,
+      slot_time: record.appointment?.slot?.slot_time ?? null,
+      branch_name: record.appointment?.session?.branch?.name ?? null,
     },
     patient: {
       patient_id: record.patient.patient_id,

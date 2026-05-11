@@ -46,7 +46,7 @@ export async function getUserDoctorId(
   user_id: string,
   hospital_id: string
 ): Promise<string | null> {
-  const doctor = await prisma.doctor.findUnique({
+  const doctor = await prisma.doctor.findFirst({
     where: {
       user_id: user_id,
       hospital_id: hospital_id,
