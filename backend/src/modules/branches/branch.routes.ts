@@ -8,9 +8,10 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, authorize } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { branchIdParamSchema } from './branch.validation';
+import { ROLES } from '../../constants/roles';
+import { branchIdParamSchema, createBranchSchema, updateBranchSchema } from './branch.validation';
 import * as ctrl from './branch.controller';
 
 export const branchRouter = Router();
@@ -24,4 +25,28 @@ branchRouter.get(
   '/:id',
   validate({ params: branchIdParamSchema }),
   ctrl.getBranchById,
+);
+
+// POST /api/v1/branches — create a branch (admin only)
+branchRouter.post(
+  '/',
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  validate({ body: createBranchSchema }),
+  ctrl.createBranch,
+);
+
+// PUT /api/v1/branches/:id — update a branch (admin only)
+branchRouter.put(
+  '/:id',
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  validate({ params: branchIdParamSchema, body: updateBranchSchema }),
+  ctrl.updateBranch,
+);
+
+// DELETE /api/v1/branches/:id — delete a branch (admin only)
+branchRouter.delete(
+  '/:id',
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  validate({ params: branchIdParamSchema }),
+  ctrl.deleteBranch,
 );

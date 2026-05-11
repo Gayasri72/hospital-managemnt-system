@@ -40,3 +40,37 @@ export async function findByIdInHospital(branchId: string, hospitalId: string) {
     },
   });
 }
+
+/**
+ * Create a new branch for a hospital.
+ */
+export async function createBranch(hospitalId: string, name: string, location?: string) {
+  return prisma.branch.create({
+    data: { hospital_id: hospitalId, name, location },
+    select: { branch_id: true, name: true, location: true, created_at: true },
+  });
+}
+
+/**
+ * Update a branch — scoped to hospital_id.
+ */
+export async function updateBranch(
+  branchId: string,
+  hospitalId: string,
+  data: { name?: string; location?: string | null },
+) {
+  return prisma.branch.updateMany({
+    where: { branch_id: branchId, hospital_id: hospitalId },
+    data,
+  });
+}
+
+/**
+ * Delete a branch — scoped to hospital_id.
+ * Returns count of deleted rows (0 if not found / wrong hospital).
+ */
+export async function deleteBranch(branchId: string, hospitalId: string) {
+  return prisma.branch.deleteMany({
+    where: { branch_id: branchId, hospital_id: hospitalId },
+  });
+}
