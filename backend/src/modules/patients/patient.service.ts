@@ -159,15 +159,39 @@ export async function updatePatient(
  * - Verifies patient belongs to the authenticated user's hospital
  */
 export async function getPatientAppointments(patientId: string, hospitalId: string) {
-  // Verify patient exists and belongs to this hospital
   const patient = await patientRepo.findByIdInHospital(patientId, hospitalId);
   if (!patient) {
-    throw new AppError(
-      'Patient not found.',
-      404,
-      'PATIENT_NOT_FOUND',
-    );
+    throw new AppError('Patient not found.', 404, 'PATIENT_NOT_FOUND');
   }
 
   return patientRepo.findAppointmentsByPatient(patientId, hospitalId);
+}
+
+/**
+ * Delete a patient permanently.
+ *
+ * Business rules:
+ * - Patient must belong to this hospital
+ * - Blocked if the patient has any appointment records (data integrity)
+ */
+export async function deletePatient(patientId: string, hospitalId: string, userId: string) {
+  const existing = await patientRepo.findByIdInHospital(patientId, hospitalId);
+  if (!existing) {
+    throw new AppError('Patient not found.', 404, 'PATIENT_NOT_FOUND');
+  }
+
+  const appointmentCount = await patientRepo.countAppointmentsByPatient(patientId, hospitalId);
+  if (appointmentCount > 0) {
+    throw new AppError(
+      'Cannot delete a patient who has appointment records. Deactivate the patient instead or contact the administrator.',
+      409,
+      'PATIENT_HAS_APPOINTMENTS',
+    );
+  }
+
+  return patientRepo.deleteById(patientId, {
+    user_id: userId,
+    action: 'DELETE_PATIENT',
+    entity: 'patients',
+  });
 }

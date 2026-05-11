@@ -128,3 +128,23 @@ export const getPatientAppointments = asyncHandler(async (req: Request, res: Res
     data: appointments,
   });
 });
+
+/**
+ * DELETE /api/v1/patients/:id
+ * Permanently delete a patient (blocked if they have appointment records).
+ */
+export const deletePatient = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) {
+    throw new AppError('Authentication required.', 401);
+  }
+
+  const patientId = String(req.params['id']);
+
+  await patientService.deletePatient(patientId, req.user.hospitalId, req.user.userId);
+
+  sendSuccess({
+    res,
+    message: 'Patient deleted successfully',
+    data: null,
+  });
+});

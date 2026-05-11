@@ -67,4 +67,12 @@ router.get(
   patientController.getPatientAppointments,
 );
 
+// DELETE /api/v1/patients/:id — permanently delete (Admin only; blocked if appointments exist)
+router.delete(
+  '/:id',
+  authorize(ROLES.HOSPITAL_ADMIN, ROLES.SUPER_ADMIN),
+  validate({ params: patientIdParamSchema }),
+  patientController.deletePatient,
+);
+
 export default router;

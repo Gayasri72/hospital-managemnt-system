@@ -208,3 +208,28 @@ export async function findAppointmentsByPatient(patientId: string, hospitalId: s
   });
 }
 
+/**
+ * Count appointments for a patient — used before deletion to block if records exist.
+ */
+export async function countAppointmentsByPatient(patientId: string, hospitalId: string): Promise<number> {
+  return prisma.appointment.count({
+    where: { patient_id: patientId, hospital_id: hospitalId },
+  });
+}
+
+/**
+ * Hard-delete a patient and their profile in a single transaction.
+ * Only call this after confirming there are no appointments.
+ */
+export async function deleteById(
+  patientId: string,
+  audit: Omit<AuditEntry, 'entity_id'>,
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.patientProfile.deleteMany({ where: { patient_id: patientId } });
+    const patient = await tx.patient.delete({ where: { patient_id: patientId } });
+    await writeAuditLog({ ...audit, entity_id: patientId }, tx);
+    return patient;
+  });
+}
+
